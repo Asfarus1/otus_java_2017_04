@@ -16,16 +16,18 @@
 
     <properties>
         <net.sf.opencsv.version>2.3</net.sf.opencsv.version>
+        <finalName>${project.name}_${java.version}_${os.name}</finalName>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>1.8</maven.compiler.source>
     </properties>
 
     <build>
         <plugins>
+
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
+                <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <finalName>${finalName}</finalName>
                 </configuration>
             </plugin>
             <plugin>
@@ -37,21 +39,69 @@
                             <mainClass>ru.otus_matveev_anton.Main</mainClass>
                         </manifest>
                     </archive>
-                    <finalName>${project.name}_${java.version}_${os.name}</finalName>
+                    <finalName>${finalName}</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
                 </configuration>
             </plugin>
+
+
+            <!-- BEGIN OBFUSCATE -->
+            <plugin>
+                <groupId>com.github.wvengen</groupId>
+                <artifactId>proguard-maven-plugin</artifactId>
+                <version>2.0.14</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>proguard</goal></goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <obfuscate>true</obfuscate>
+                    <injar>${finalName}.jar</injar>
+                    <outjar>${finalName}_obfuscated.jar</outjar>
+                    <archive>
+                        <manifest>
+                            <mainClass>Main</mainClass>
+                            <packageName>ru.otus_matveev_anton</packageName>
+                        </manifest>
+                    </archive>
+                    <includeDependency>true</includeDependency>
+                    <options>
+                        <option>-allowaccessmodification</option>
+                        <option>-adaptclassstrings</option>
+                        <option>-adaptresourcefilecontent emails.csv.csv</option>
+                        <option>-keep public class ru.otus_matveev_anton.Main { public static void
+                            main(java.lang.String[]);}</option>
+                    </options>
+                    <libs>
+                        <lib>${java.home}/lib/rt.jar</lib>
+                        <lib>${java.home}/lib/jsse.jar</lib>
+                    </libs>
+                </configuration>
+            </plugin>
+             <!--END OBFUSCATE -->
+
         </plugins>
+        <resources>
+            <resource>
+                <directory>${pom.basedir}</directory>
+                <includes>
+                    <include>emails.csv</include>
+                </includes>
+            </resource>
+        </resources>
     </build>
 
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>3.8.1</version>
+            <version>RELEASE</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>net.sf.opencsv</groupId>
