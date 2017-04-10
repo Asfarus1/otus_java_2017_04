@@ -8,7 +8,7 @@ import java.util.function.Supplier;
  */
 public class MemoryMeasurement {
 
-    private static final int DEFAULT_ITER_COUNT = 1_000_000;
+    private static final int DEFAULT_ITER_COUNT = 5_000_000;
 
     public static class MeasurementResult {
         public final long initSize;
@@ -16,53 +16,47 @@ public class MemoryMeasurement {
         public final int iterCount;
 
         public MeasurementResult(long initSize, long addedSizePerIter, int iterCount) {
-            this.initSize = initSize;
-            this.addedSizePerIter = addedSizePerIter;
+            this.initSize = Math.round(initSize/(double)iterCount);
+            this.addedSizePerIter = Math.round(addedSizePerIter/(double)iterCount);
             this.iterCount = iterCount;
         }
     }
 
-    public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc, BiConsumer<T, Integer> iterFunc) {
-        return makeMeasurement(initFunc, iterFunc, DEFAULT_ITER_COUNT);
-    }
-
     public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc) {
-        return makeMeasurement(initFunc, null, DEFAULT_ITER_COUNT);
+        return makeMeasurement(initFunc, null);
     }
 
-    public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc, int iterCount) {
-        return makeMeasurement(initFunc, null, iterCount);
-    }
-
-    public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc, BiConsumer<T, Integer> iterFunc, int iterCount) {
-        long freeMemory;
+    public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc, BiConsumer<T, Integer> iterFunc) {
+        long usedMemory;
         long usedInitMemory = 0;
         long usedIterMemory = 0;
 
         final Runtime runtime = Runtime.getRuntime();
 
-        T[] arr;
+        Object[] arr;
         int i;
-        for (int j = 1 + iterCount / 10_000; j > -1; j--) {
 
-            arr = (T[]) new Object[10_000];
-            freeMemory = runtime.freeMemory();
+        {
+            arr = new Object[DEFAULT_ITER_COUNT];
+            usedMemory = runtime.totalMemory() - runtime.freeMemory();
             for (i = 0; i < arr.length; i++) {
                 arr[i] = initFunc.get();
             }
-            usedInitMemory += (freeMemory - runtime.freeMemory()) / arr.length;
         }
+        usedInitMemory += (runtime.totalMemory() -  runtime.freeMemory()) - usedMemory;
+        System.gc();
 
         if (iterFunc != null) {
-            freeMemory = runtime.freeMemory();
+            usedMemory = runtime.freeMemory();
             T obj = initFunc.get();
-            for (i = 0; i < iterCount; i++) {
+            for (i = 0; i < DEFAULT_ITER_COUNT; i++) {
                 iterFunc.accept(obj, i);
             }
-            usedIterMemory += freeMemory - runtime.freeMemory();
+            usedIterMemory += usedMemory - runtime.freeMemory();
         }
 
-        return new MeasurementResult(usedInitMemory / iterCount, usedIterMemory / iterCount, iterCount);
+        System.gc();
+        return new MeasurementResult(usedInitMemory, usedIterMemory, DEFAULT_ITER_COUNT);
     }
 
 }
