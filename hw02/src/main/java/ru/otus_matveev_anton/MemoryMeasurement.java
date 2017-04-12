@@ -26,24 +26,28 @@ public class MemoryMeasurement {
     private MemoryMeasurement() {
     }
 
-    private void waitFinalize(){
+    private void waitFinalize() {
         System.gc();
-        try {
-            for (int i = 0; i < 10; i++) {
-                if (!isObjectInMemory){
-                    System.out.println("Wrapper очищен сборщиком");
-                    break;
-                }
-                Thread.sleep(10);
+        for (int i = 0; i < 10; i++) {
+            if (!isObjectInMemory) {
+                System.out.println("Wrapper очищен сборщиком");
+                break;
             }
-            Thread.sleep(10);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+            trySleep(10);
         }
+        trySleep(10);
     }
 
     public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc){
         return makeMeasurement(initFunc, null);
+    }
+
+    private static void trySleep(int millis){
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc, Consumer<T> iterFunc){
@@ -61,6 +65,9 @@ public class MemoryMeasurement {
             usedMemory = runtime.totalMemory() - runtime.freeMemory();
             for (i = 0; i < arr.length; i++) {
                 arr[i] = initFunc.get();
+                if (i % 1024 == 0){
+                    trySleep(1);
+                }
             }
             usedInitMemory += (runtime.totalMemory() -  runtime.freeMemory()) - usedMemory;
         }
@@ -73,6 +80,9 @@ public class MemoryMeasurement {
                 Wrapper wrap = GCWaiter.new Wrapper(obj);
                 for (i = 0; i < DEFAULT_ITER_COUNT; i++) {
                     iterFunc.accept(obj);
+                    if (i % 1024 == 0){
+                        trySleep(1);
+                    }
                 }
                 usedIterMemory += (runtime.totalMemory() -  runtime.freeMemory()) - usedMemory;
             }
