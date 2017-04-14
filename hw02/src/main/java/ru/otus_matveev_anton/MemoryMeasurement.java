@@ -74,16 +74,16 @@ public class MemoryMeasurement {
 
         if (iterFunc != null) {
             {
-                usedMemory = runtime.totalMemory() - runtime.freeMemory();
                 T obj = initFunc.get();
                 Wrapper wrap = GCWaiter.new Wrapper(obj);
+                usedMemory = runtime.totalMemory() - runtime.freeMemory();
                 for (i = 0; i < DEFAULT_ITER_COUNT; i++) {
-                iterFunc.accept(obj);
-                if (i % 1024 == 0){
-                    trySleep(1);
+                    iterFunc.accept(obj);
+                    if (i % 1024 == 0) {
+                        trySleep(1);
+                    }
                 }
-            }
-                usedIterMemory += (runtime.totalMemory() -  runtime.freeMemory()) - usedMemory;
+                usedIterMemory += (runtime.totalMemory() - runtime.freeMemory()) - usedMemory;
             }
             GCWaiter.waitFinalize();
         }
