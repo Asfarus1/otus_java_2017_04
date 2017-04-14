@@ -8,7 +8,7 @@ import java.util.function.Supplier;
  */
 public class MemoryMeasurement {
 
-    private static final int DEFAULT_ITER_COUNT = 12_000_000;
+    private static final int DEFAULT_ITER_COUNT = 1_000_000;
     private boolean isObjectInMemory;
 
     public static class MeasurementResult {
@@ -28,14 +28,13 @@ public class MemoryMeasurement {
 
     private void waitFinalize() {
         System.gc();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             if (!isObjectInMemory) {
-                System.out.println("Wrapper очищен сборщиком");
                 break;
             }
-            trySleep(10);
+            trySleep(1);
         }
-        trySleep(10);
+        trySleep(1);
     }
 
     public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc){
@@ -79,11 +78,11 @@ public class MemoryMeasurement {
                 T obj = initFunc.get();
                 Wrapper wrap = GCWaiter.new Wrapper(obj);
                 for (i = 0; i < DEFAULT_ITER_COUNT; i++) {
-                    iterFunc.accept(obj);
-                    if (i % 1024 == 0){
-                        trySleep(1);
-                    }
+                iterFunc.accept(obj);
+                if (i % 1024 == 0){
+                    trySleep(1);
                 }
+            }
                 usedIterMemory += (runtime.totalMemory() -  runtime.freeMemory()) - usedMemory;
             }
             GCWaiter.waitFinalize();
