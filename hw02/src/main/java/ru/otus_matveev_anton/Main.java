@@ -17,10 +17,10 @@ public class Main {
         MemoryMeasurement.MeasurementResult stringSize = MemoryMeasurement.makeMeasurement(()->new String(""));
         System.out.printf("Размер пустой строки = %d байт на %d итерациях%n", stringSize.initSize, stringSize.iterCount, stringSize.addedSizePerIter);
 
-        MemoryMeasurement.MeasurementResult linkedListSize = MemoryMeasurement.makeMeasurement(ArrayList<Integer>::new, (ar)->ar.ensureCapacity(ar.size() + 1));
-        System.out.printf("Размер LinkedList<Integer> = %d байт на %d итерациях, рост памяти за элемент = %d байт%n", linkedListSize.initSize, linkedListSize.iterCount, linkedListSize.addedSizePerIter);
+        MemoryMeasurement.MeasurementResult arrayListSize100 = MemoryMeasurement.makeMeasurement(() ->new ArrayList<>(100));
+        System.out.printf("Размер LinkedList<Integer>(100) = %d байт на %d итерациях%n", arrayListSize100.initSize, arrayListSize100.iterCount, arrayListSize100.addedSizePerIter);
 
-        MemoryMeasurement.MeasurementResult arrayListSize = MemoryMeasurement.makeMeasurement(ArrayList<Integer>::new, (ar)->ar.ensureCapacity(ar.size() + 1));
-        System.out.printf("Размер ArrayList<Integer> = %d байт на %d итерациях, рост памяти за элемент = %d байт%n", arrayListSize.initSize, arrayListSize.iterCount, arrayListSize.addedSizePerIter);
+        MemoryMeasurement.MeasurementResult arrayListSize = MemoryMeasurement.makeMeasurement(() ->new ArrayList<>(1));
+        System.out.printf("Размер ArrayList<Integer>(1) = %d байт на %d итерациях%n", arrayListSize.initSize, arrayListSize.iterCount, arrayListSize.addedSizePerIter);
     }
 }

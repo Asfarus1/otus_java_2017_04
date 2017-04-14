@@ -37,10 +37,6 @@ public class MemoryMeasurement {
         trySleep(1);
     }
 
-    public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc){
-        return makeMeasurement(initFunc, null);
-    }
-
     private static void trySleep(int millis){
         try {
             Thread.sleep(millis);
@@ -49,7 +45,7 @@ public class MemoryMeasurement {
         }
     }
 
-    public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc, Consumer<T> iterFunc){
+    public static <T> MeasurementResult makeMeasurement(Supplier<T> initFunc){
         long usedMemory;
         long usedInitMemory = 0;
         long usedIterMemory = 0;
@@ -71,22 +67,6 @@ public class MemoryMeasurement {
             usedInitMemory += (runtime.totalMemory() -  runtime.freeMemory()) - usedMemory;
         }
         GCWaiter.waitFinalize();
-
-        if (iterFunc != null) {
-            {
-                T obj = initFunc.get();
-                Wrapper wrap = GCWaiter.new Wrapper(obj);
-                usedMemory = runtime.totalMemory() - runtime.freeMemory();
-                for (i = 0; i < DEFAULT_ITER_COUNT; i++) {
-                    iterFunc.accept(obj);
-                    if (i % 1024 == 0) {
-                        trySleep(1);
-                    }
-                }
-                usedIterMemory += (runtime.totalMemory() - runtime.freeMemory()) - usedMemory;
-            }
-            GCWaiter.waitFinalize();
-        }
 
         return new MeasurementResult(usedInitMemory, usedIterMemory, DEFAULT_ITER_COUNT);
     }
