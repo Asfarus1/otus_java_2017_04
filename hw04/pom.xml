@@ -20,10 +20,13 @@
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
                     <appendAssemblyId>false</appendAssemblyId>
                     <archive>
                         <manifest>
-                            <maimClass>ru.otus_matveev_anton.hw04.Main</maimClass>
+                            <mainClass>ru.otus_matveev_anton.hw04.Main</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
