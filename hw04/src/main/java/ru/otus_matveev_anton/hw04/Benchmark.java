@@ -7,46 +7,36 @@ import java.util.List;
  * Created by Matveev.AV1 on 26.04.2017.
  */
 public class Benchmark implements BenchmarkMBean {
-    private int size;
-    private int memoryGrowthRate;
+    private int countAddedElemPerIter = 3;
+    private int countRemovedElemPerIter = 1;
 
-    public int getSize() {
-        return size;
+    @Override
+    public int getCountRemovedElemPerIter() {
+        return countRemovedElemPerIter;
     }
 
-    public void setSize(int size) {
-        this.size = size;
+    @Override
+    public void setCountRemovedElemPerIter(int count) {
+        this.countRemovedElemPerIter = count;
     }
 
-    public int getMemoryGrowthRate() {
-        return memoryGrowthRate;
+    public int getCountAddedElemPerIter() {
+        return countAddedElemPerIter;
     }
 
-    /**
-     * чем меньше тем быстрее заполнеется память
-     * @param memoryGrowthRate
-     */
-    public void setMemoryGrowthRate(int memoryGrowthRate) {
-        this.memoryGrowthRate = memoryGrowthRate;
+    public void setCountAddedElemPerIter(int count) {
+        this.countAddedElemPerIter = count;
     }
 
     void run(){
-        List memoryDevourer = new LinkedList();
-        int currentSize = size;
-        Object[] array = new Object[currentSize];
-
-        System.out.printf("Array of size: %d created; linked list size %d%n", currentSize, memoryDevourer.size());
-        int i = 0;
-        while (i < Integer.MAX_VALUE) {
-            array[i % currentSize] = new String(new char[0]);
-            i++;
-            if (i % memoryGrowthRate == 0){
+        List<String> memoryDevourer = new LinkedList<>();
+        int i;
+        while (true) {
+            for (i = 0; i < getCountAddedElemPerIter(); i++) {
                 memoryDevourer.add(new String(new char[0]));
             }
-            if (i % currentSize == 0){
-                currentSize = size;
-                array = new Object[currentSize];
-                System.out.printf("Array of size: %d created; linked list size %d%n", currentSize, memoryDevourer.size());
+            for (i = 0; i < getCountRemovedElemPerIter();i++){
+                memoryDevourer.remove(0);
             }
         }
     }

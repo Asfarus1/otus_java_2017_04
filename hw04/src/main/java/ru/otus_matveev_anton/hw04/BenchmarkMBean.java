@@ -4,11 +4,11 @@ package ru.otus_matveev_anton.hw04;
  * Created by Matveev.AV1 on 26.04.2017.
  */
 public interface BenchmarkMBean {
-    int getSize();
+    int getCountAddedElemPerIter();
 
-    void setSize(int size);
+    void setCountAddedElemPerIter(int count);
 
-    int getMemoryGrowthRate();
+    int getCountRemovedElemPerIter();
 
-    void setMemoryGrowthRate(int rate);
+    void setCountRemovedElemPerIter(int count);
 }

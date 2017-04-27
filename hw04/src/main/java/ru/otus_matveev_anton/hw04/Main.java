@@ -17,18 +17,27 @@ import java.util.List;
 public class Main {
     public static void main(String[] args) throws Exception {
         System.out.println("Starting pid: " + ManagementFactory.getRuntimeMXBean().getName());
-        installGCMonitoring();
-        int size = 5 * 1000 * 1000;
-        //int size = 50 * 1024 * 1024;//for OOM with -Xms512m
-        //int size = 50 * 1024 * 102; //for small dump
 
+//        try {
+//            List<GarbageCollectorMXBean> gcMxBeans = ManagementFactory.getGarbageCollectorMXBeans();
+//
+//            for (GarbageCollectorMXBean gcMxBean : gcMxBeans) {
+//                System.out.println(gcMxBean.getName());
+////                System.out.println(gcMxBean.getObjectName());
+//            }
+//
+//        } catch (RuntimeException re) {
+//            throw re;
+//        } catch (Exception exp) {
+//            throw new RuntimeException(exp);
+//        }
         MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
         ObjectName name = new ObjectName("ru.otus_matveev_anton:type=Benchmark");
         Benchmark mBean = new Benchmark();
         beanServer.registerMBean(mBean, name);
 
-        mBean.setSize(size);
-        mBean.setMemoryGrowthRate(1000);
+        mBean.setCountAddedElemPerIter(2);
+        mBean.setCountRemovedElemPerIter(1);
         mBean.run();
     }
 
@@ -41,7 +50,6 @@ public class Main {
             NotificationListener listener = (notification, handback) -> {
                 if (notification.getType().equals(GarbageCollectionNotificationInfo.GARBAGE_COLLECTION_NOTIFICATION)) {
                     GarbageCollectionNotificationInfo info = GarbageCollectionNotificationInfo.from((CompositeData) notification.getUserData());
-
                     long duration = info.getGcInfo().getDuration();
                     String gctype = info.getGcAction();
 
