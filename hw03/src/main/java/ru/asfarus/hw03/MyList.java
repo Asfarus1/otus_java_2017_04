@@ -2,48 +2,64 @@ package ru.asfarus.hw03;
 
 import java.io.Serializable;
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 
-/**
- * Created by asfarus on 01.05.17.
- */
 public class MyList<T> implements List<T>, Serializable, RandomAccess{
 
-    private T[] arr;
+    private static final int INITIAL_CAPACITY = 10;
+    private Object[] arr;
     private int size;
+
+    @SuppressWarnings("unchecked")
+    public MyList(int intialCapacity) {
+        this.arr = new Object[intialCapacity];
+    }
+
+    public MyList() {
+        this(INITIAL_CAPACITY);
+    }
 
     public int size() {
         return this.size;
     }
 
     public boolean isEmpty() {
-        return size() == 0;
+        return this.size == 0;
     }
 
     private String outOfBoundsMsg(int var1) {
-        return "Index: " + var1 + ", Size: " + this.size();
+        return String.format("Index: %d, Size^ %d", var1, this.size());
     }
 
     public boolean contains(Object o) {
         return this.indexOf(o) != -1;
     }
 
+    @SuppressWarnings("unchecked")
     public T[] toArray() {
-        return Arrays.copyOf(arr,size());
+        return (T[])Arrays.copyOf(arr, this.size);
     }
 
+    @SuppressWarnings("unchecked")
     public <T1> T1[] toArray(T1[] t1s) {
-        System.arraycopy(t1s, 0, this.arr, 0, size());
-        Arrays.fill(t1s, size(), t1s.length, null);
+        if (t1s.length < size) {
+            return (T1[]) Arrays.copyOf(this.arr, size, t1s.getClass());
+        }
+        System.arraycopy(this.arr, 0, t1s, 0, this.size());
+        if (this.size() < t1s.length) {
+            Arrays.fill(t1s, this.size(), t1s.length, null);
+        }
         return t1s;
     }
 
     private void addSize(int needSize){
-        if (needSize <= arr.length){
+        if (needSize <= this.arr.length){
             return;
         }
         int newSize = arr.length + arr.length >> 1;
         newSize = newSize<needSize?needSize:newSize;
-        arr = Arrays.copyOf(arr, newSize);
+        arr = Arrays.copyOf(this.arr, newSize);
     }
 
     private void checkIndex(int ind){
@@ -53,7 +69,7 @@ public class MyList<T> implements List<T>, Serializable, RandomAccess{
     }
 
     public boolean add(T t) {
-        addSize(size() + 1);
+        addSize(this.size + 1);
         this.arr[this.size++] = t;
         return true;
     }
@@ -63,14 +79,16 @@ public class MyList<T> implements List<T>, Serializable, RandomAccess{
         this.size = 0;
     }
 
+    @SuppressWarnings("unchecked")
     public T get(int i) {
         checkIndex(i);
-        return this.arr[i];
+        return (T)this.arr[i];
     }
 
+    @SuppressWarnings("unchecked")
     public T set(int i, T t) {
         checkIndex(i);
-        T res = this.arr[i];
+        T res = (T)this.arr[i];
         this.arr[i] = t;
         return res;
     }
@@ -80,10 +98,11 @@ public class MyList<T> implements List<T>, Serializable, RandomAccess{
         return fastRemove(i);
     }
 
+    @SuppressWarnings("unchecked")
     private T fastRemove(int i){
-        T res = this.arr[i];
-        if (i < size() - 1){
-            System.arraycopy(this.arr, i, this.arr, i + 1, size() - i - 1);
+        T res = (T)this.arr[i];
+        if (i < this.size - 1){
+            System.arraycopy(this.arr, i + 1, this.arr, i, this.size - i - 1);
         }
         this.arr[--this.size] = null;
         return res;
@@ -99,17 +118,20 @@ public class MyList<T> implements List<T>, Serializable, RandomAccess{
     }
 
     public void add(int i, T t) {
-        if (i < 0 || i > size()){
+        if (i < 0 || i > this.size){
             throw new IndexOutOfBoundsException();
         }
-        addSize(size() + 1);
-        if (i != size()){
-            System.arraycopy(this.arr, i + 1, this.arr, i, size() - i);
+        addSize(this.size + 1);
+        if (i < this.size){
+            System.arraycopy(this.arr, i, this.arr, i + 1, this.size++ - i);
+            this.arr[i] = t;
+        }else {
+            this.arr[this.size++] = t;
         }
     }
 
     public int indexOf(Object o) {
-        for (int i = 0; i < size(); i++) {
+        for (int i = 0; i < this.size; i++) {
             if (Objects.equals(this.arr[i], o)){
                 return i;
             }
@@ -118,7 +140,7 @@ public class MyList<T> implements List<T>, Serializable, RandomAccess{
     }
 
     public int lastIndexOf(Object o) {
-        for (int i = size() - 1; i > -1; i--) {
+        for (int i = this.size - 1; i > -1; i--) {
             if (Objects.equals(this.arr[i], o)){
                 return i;
             }
@@ -141,37 +163,133 @@ public class MyList<T> implements List<T>, Serializable, RandomAccess{
 
     public boolean addAll(int i, Collection<? extends T> collection) {
         int count = collection.size();
-        addSize(this.size() + count);
+        addSize(this.size + count);
         if (i < this.size()){
-            System.arraycopy(this.arr, i + count, this.arr, i, this.size - i);
+            System.arraycopy(this.arr, i, this.arr, i + count, this.size - i);
         }
         for (T elem : collection) {
             this.arr[i++] = elem;
         }
-        return true;
+        this.size+= count;
+        return !collection.isEmpty();
     }
 
     public boolean removeAll(Collection<?> collection) {
-        return false;
+        Objects.requireNonNull(collection);
+        return removeIf(collection::contains);
     }
 
     public boolean retainAll(Collection<?> collection) {
+        Objects.requireNonNull(collection);
+        return removeIf((e) ->!collection.contains(e));
+    }
+
+    @SuppressWarnings("unchecked")
+    public boolean removeIf(Predicate<? super T> filter){
+        Objects.requireNonNull(filter);
+        int newIndex = 0, index = 0;
+        for (;index < this.size; index ++){
+            if (!filter.test((T) this.arr[index])){
+                this.arr[newIndex++] = this.arr[index];
+            }
+        }
+        if (newIndex < this.size){
+            this.arr = Arrays.copyOf(this.arr, newIndex);
+            this.size = newIndex;
+            return true;
+        }
         return false;
     }
 
+    private class Iter implements Iterator<T>{
+        int pos = 0;
+        int currentItem = -1;
+
+        @Override
+        public boolean hasNext() {
+            return pos < MyList.this.size;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public T next() {
+            return (T)MyList.this.arr[currentItem = pos++];
+        }
+
+        @Override
+        public void remove() {
+            MyList.this.remove(pos = currentItem);
+            currentItem = -1;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void forEachRemaining(Consumer<? super T> action) {
+            Objects.requireNonNull(action);
+            final int len = MyList.this.size();
+            for (int i = 0; i < len; i++) {
+                action.accept((T) MyList.this.arr[i]);
+            }
+        }
+    }
+
+    private class ListIter extends Iter implements ListIterator<T>{
+
+        ListIter(int pos) {
+            this.pos = pos;
+        }
+
+        @Override
+        public boolean hasPrevious() {
+            return pos > 0;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public T previous() {
+            return (T) MyList.this.arr[currentItem = --pos];
+        }
+
+        @Override
+        public int nextIndex() {
+            return pos;
+        }
+
+        @Override
+        public int previousIndex() {
+            return pos - 1;
+        }
+
+        @Override
+        public void set(T t) {
+            MyList.this.arr[pos] = t;
+        }
+
+        @Override
+        public void add(T t) {
+            MyList.this.add(pos++, t);
+            currentItem = -1;
+        }
+    }
+
     public Iterator<T> iterator() {
-        return null;
+        return new Iter();
     }
 
     public ListIterator<T> listIterator() {
-        return null;
+        return new ListIter(0);
     }
 
     public ListIterator<T> listIterator(int i) {
-        return null;
+        return new ListIter(i);
     }
 
     public List<T> subList(int i, int i1) {
-        return null;
+        throw new UnsupportedOperationException();
+    }
+
+    @SuppressWarnings("unchecked")
+    public void sort(Comparator<? super T> c) {
+        Arrays.sort((T[]) this.arr, 0, this.size(), c);
     }
 }
