@@ -7,12 +7,16 @@ import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Created by asfarus on 09.05.17.
  */
 public class Main {
     public static void main(String[] args) throws ClassNotFoundException, IOException {
+        Object a = null;
+        Object b = null;
+
         String packageName = "ru.otus_matveev_anton.hw05";
         getClassesForPackage(packageName).forEach(System.out::println);
     }
