@@ -2,11 +2,8 @@ package ru.otus_matveev_anton.hw05.testframework.utils;
 
 import java.util.Objects;
 
-/**
- * Created by Matveev.AV1 on 10.05.2017.
- */
 public final class Assert {
-    private Assert() {}
+    protected Assert() {}
 
     public static void assertEquals(Object expected, Object actual){
         if (!Objects.equals(expected,actual)){
@@ -21,7 +18,7 @@ public final class Assert {
     }
 
     public static void assertFalse(boolean flag){
-        if (!flag){
+        if (flag){
             fail("is not false");
         }
     }
@@ -51,7 +48,14 @@ public final class Assert {
         }
     }
 
+    public static void notNull(Object obj){
+        if (obj == null){
+            fail("Must not be null!");
+        }
+    }
+
     public static void fail(String msg){
         throw new AssertionError(msg);
     }
+
 }

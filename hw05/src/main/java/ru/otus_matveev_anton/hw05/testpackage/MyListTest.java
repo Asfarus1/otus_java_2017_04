@@ -1,12 +1,13 @@
 package ru.otus_matveev_anton.hw05.testpackage;
 
-import ru.otus_matveev_anton.hw05.testframework.anotations.Before;
-import ru.otus_matveev_anton.hw05.testframework.anotations.Ignore;
-import ru.otus_matveev_anton.hw05.testframework.anotations.Test;
+import ru.otus_matveev_anton.hw05.testframework.Before;
+import ru.otus_matveev_anton.hw05.testframework.Ignore;
+import ru.otus_matveev_anton.hw05.testframework.Test;
 import ru.otus_matveev_anton.hw05.testframework.utils.Assert;
 
 import java.util.*;
 
+//взял тесты из hw03, сменил импорты и добвил ошибочный тест
 public class MyListTest {
 
     private List<Integer> myList;
@@ -73,20 +74,20 @@ public class MyListTest {
 
     @Test
     public void testGet() throws Exception {
-        Assert.assertEquals(Integer.valueOf(3), myList.get(6));
+        Assert.assertEquals(3, myList.get(6));
     }
 
     @Test
     public void testSet() throws Exception {
-        Assert.assertEquals(myList.set(2,1),Integer.valueOf(7));
-        Assert.assertEquals(myList.set(5,1),Integer.valueOf(4));
+        Assert.assertEquals(myList.set(2,1), 7);
+        Assert.assertEquals(myList.set(5,1), 4);
         Assert.assertArrayEquals(new Integer[]{9,8,1,6,5,1,3,2,1},myList.toArray());
     }
 
     @Test
     public void testRemoveByIndex() throws Exception {
-        Assert.assertEquals(myList.remove(0), Integer.valueOf(9));
-        Assert.assertEquals(myList.remove(4),Integer.valueOf(4));
+        Assert.assertEquals(myList.remove(0), 9);
+        Assert.assertEquals(myList.remove(4), 4);
         Assert.assertArrayEquals(new Integer[]{8,7,6,5,3,2,1},myList.toArray());
     }
 
@@ -170,11 +171,11 @@ public class MyListTest {
         ListIterator<Integer> iter = myList.listIterator();
         Assert.assertTrue(iter.hasNext());
         Assert.assertFalse(iter.hasPrevious());
-        Assert.assertEquals(Integer.valueOf(9), iter.next());
+        Assert.assertEquals(9, iter.next());
         Assert.assertTrue(iter.hasPrevious());
-        Assert.assertEquals(Integer.valueOf(8), iter.next());
-        Assert.assertEquals(Integer.valueOf(8), iter.previous());
-        Assert.assertEquals(Integer.valueOf(9), iter.previous());
+        Assert.assertEquals(8, iter.next());
+        Assert.assertEquals(8, iter.previous());
+        Assert.assertEquals(9, iter.previous());
     }
 
     @Test
@@ -182,7 +183,7 @@ public class MyListTest {
         ListIterator<Integer> iter = myList.listIterator(8);
         Assert.assertTrue(iter.hasNext());
         Assert.assertTrue(iter.hasPrevious());
-        Assert.assertEquals(Integer.valueOf(2), iter.previous());
+        Assert.assertEquals(2, iter.previous());
     }
 
     @Test
@@ -205,4 +206,8 @@ public class MyListTest {
         Assert.assertArrayEquals(new Integer[]{9,8,7,6,5,4,3,2,1}, newList.toArray());
     }
 
+    @Test
+    public void failTest(){
+        Assert.notNull(null);
+    }
 }
