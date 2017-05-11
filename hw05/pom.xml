@@ -14,7 +14,7 @@
     </properties>
 
     <build>
-        <finalName>hw03</finalName>
+        <finalName>hw05</finalName>
         <plugins>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
