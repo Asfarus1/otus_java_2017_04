@@ -201,9 +201,42 @@ public class MyList<T> implements List<T>, Serializable, RandomAccess{
         return false;
     }
 
-    private class Iter implements Iterator<T>{
+    private class ListIter implements Iterator<T>, ListIterator<T>{
         int pos = 0;
         int currentItem = -1;
+
+        public ListIter() {
+        }
+
+        ListIter(int pos) {
+            this.pos = pos;
+        }
+
+        public boolean hasPrevious() {
+            return pos > 0;
+        }
+
+        @SuppressWarnings("unchecked")
+        public T previous() {
+            return (T) MyList.this.arr[currentItem = --pos];
+        }
+
+        public int nextIndex() {
+            return pos;
+        }
+
+        public int previousIndex() {
+            return pos - 1;
+        }
+
+        public void set(T t) {
+            MyList.this.arr[pos] = t;
+        }
+
+        public void add(T t) {
+            MyList.this.add(pos++, t);
+            currentItem = -1;
+        }
 
         @Override
         public boolean hasNext() {
@@ -233,47 +266,8 @@ public class MyList<T> implements List<T>, Serializable, RandomAccess{
         }
     }
 
-    private class ListIter extends Iter implements ListIterator<T>{
-
-        ListIter(int pos) {
-            this.pos = pos;
-        }
-
-        @Override
-        public boolean hasPrevious() {
-            return pos > 0;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public T previous() {
-            return (T) MyList.this.arr[currentItem = --pos];
-        }
-
-        @Override
-        public int nextIndex() {
-            return pos;
-        }
-
-        @Override
-        public int previousIndex() {
-            return pos - 1;
-        }
-
-        @Override
-        public void set(T t) {
-            MyList.this.arr[pos] = t;
-        }
-
-        @Override
-        public void add(T t) {
-            MyList.this.add(pos++, t);
-            currentItem = -1;
-        }
-    }
-
     public Iterator<T> iterator() {
-        return new Iter();
+        return new ListIter();
     }
 
     public ListIterator<T> listIterator() {
