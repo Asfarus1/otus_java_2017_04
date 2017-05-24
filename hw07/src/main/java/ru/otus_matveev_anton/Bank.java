@@ -5,9 +5,6 @@ import ru.otus_matveev_anton.atm.ATM;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by Matveev.AV1 on 24.05.2017.
- */
 public class Bank {
 
     private List<ATM> atms = new ArrayList<>();

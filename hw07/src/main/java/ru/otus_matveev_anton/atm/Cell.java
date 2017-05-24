@@ -1,13 +1,12 @@
 package ru.otus_matveev_anton.atm;
 
-/**
- * Created by Matveev.AV1 on 24.05.2017.
- */
-public interface Cell {
+public interface Cell{
 
-    int getBalance();
+    int getNominal();
 
-    boolean widthdraw(int requred);
+    int getCount();
+
+    void withdraw(int count);
 
     void download();
 }
