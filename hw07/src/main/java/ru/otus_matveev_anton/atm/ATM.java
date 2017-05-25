@@ -6,4 +6,6 @@ public interface ATM {
     boolean withdraw(int requested);
 
     void download();
+
+    default void setAlgorithm(WithdrawAlgorithm algorithm){throw new UnsupportedOperationException();}
 }

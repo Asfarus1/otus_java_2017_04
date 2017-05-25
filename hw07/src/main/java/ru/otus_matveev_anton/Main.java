@@ -1,9 +1,6 @@
 package ru.otus_matveev_anton;
 
-import ru.otus_matveev_anton.atm.ATM;
-import ru.otus_matveev_anton.atm.ATMImpl;
-import ru.otus_matveev_anton.atm.Cell;
-import ru.otus_matveev_anton.atm.CellImpl;
+import ru.otus_matveev_anton.atm.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,6 +8,7 @@ import java.util.List;
 public class Main {
     public static void main(String[] args) {
         Bank bank = new Bank();
+        WithdrawAlgorithm alg = new WithdrawAlgorithmMaxBigNominals();
 
         List<Cell> cells = new ArrayList<>();
         cells.add(new CellImpl(20, 1000));
@@ -20,6 +18,7 @@ public class Main {
         cells.add(new CellImpl(100, 15));
 
         ATM atm1 = new ATMImpl(cells);
+        atm1.setAlgorithm(alg);
         System.out.println("Initial balance atm1: " + atm1.getBalance());
 
         cells = new ArrayList<>();
@@ -31,6 +30,7 @@ public class Main {
         cells.add(new CellImpl(10, 5000));
 
         ATM atm2 = new ATMImpl(cells);
+        atm2.setAlgorithm(alg);
         System.out.println("Initial balance atm2: " + atm2.getBalance());
 
         bank.addATM(atm1);
@@ -46,5 +46,8 @@ public class Main {
         bank.downloadATMs();
 
         System.out.println("Balance bank after atm downloading: " + bank.getBalance());
+
+        bank.removeATM(atm1);
+        System.out.println("Balance bank after atm1 removed: " + bank.getBalance());
     }
 }
