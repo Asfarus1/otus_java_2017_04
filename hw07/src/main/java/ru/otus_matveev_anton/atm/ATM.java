@@ -7,5 +7,5 @@ public interface ATM {
 
     void download();
 
-    default void setAlgorithm(WithdrawAlgorithm algorithm){throw new UnsupportedOperationException();}
+    void setAlgorithm(WithdrawAlgorithm algorithm);
 }
