@@ -1,13 +1,11 @@
 package ru.otus_matveev_anton;
 
-import com.sun.xml.internal.ws.spi.db.PropertyAccessor;
-import org.codehaus.jackson.annotate.JsonAutoDetect;
+import com.google.gson.Gson;
 import org.codehaus.jackson.map.ObjectMapper;
 import ru.otus_matveev_anton.entity.Characteristic;
 import ru.otus_matveev_anton.entity.ColorCharacteristic;
 import ru.otus_matveev_anton.entity.Product;
 import ru.otus_matveev_anton.entity.WeightCharacteristic;
-import com.google.gson.*;
 
 import java.io.IOException;
 import java.util.Arrays;
