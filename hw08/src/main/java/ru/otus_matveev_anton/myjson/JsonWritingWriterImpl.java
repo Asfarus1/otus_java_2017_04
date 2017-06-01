@@ -7,20 +7,19 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 class JsonWritingWriterImpl implements JsonWritingFuncContainer,JsonWriter{
-    private Map<Class, SoftReference<FunctionPart>> mapToJson = new ConcurrentHashMap<>();
     private final static FunctionPart nullFunc = (sb,v)->sb.append("null");
+    private Map<Class, SoftReference<FunctionPart>> mapToJson = new ConcurrentHashMap<>();
     private ObjectWritingAlgorithm objectWritingAlgorithm;
     private boolean isSkipNullFields;
     private ThreadLocal<Set<Object>> objectLinks = ThreadLocal.withInitial(HashSet<Object>::new);
-    private MyJsonBuilder.CyclicLinksWritingMode cyclicLinksWritingMode;
+    private ObjectLinksWalker objectLinksWalker;
 
     JsonWritingWriterImpl() {
 
     }
 
-    @Override
-    public void setCyclicLinksWritingMode(MyJsonBuilder.CyclicLinksWritingMode mode) {
-        this.cyclicLinksWritingMode = mode;
+    public void setObjectLinksWalker(ObjectLinksWalker linksWalker) {
+        this.objectLinksWalker = linksWalker;
     }
 
     public void setObjectWritingAlgorithm(ObjectWritingAlgorithm objectWritingAlgorithm) {
@@ -32,10 +31,6 @@ class JsonWritingWriterImpl implements JsonWritingFuncContainer,JsonWriter{
     }
 
     public String toJson(Object obj) {
-        Set<Object> addedObjects = objectLinks.get();
-        if(cyclicLinksWritingMode == MyJsonBuilder.CyclicLinksWritingMode.Skip){
-
-        }
         StringBuilder sb = new StringBuilder();
         FunctionPart func = getFuncToJson(obj);
         func.accept(sb, obj);
@@ -59,6 +54,7 @@ class JsonWritingWriterImpl implements JsonWritingFuncContainer,JsonWriter{
         if (func == null) {
             func = getStandardFuncToJson(obj);
             mapToJson.putIfAbsent(clazz, new SoftReference<>(func));
+            func = func.andBefore(objectLinksWalker.visitLink(obj, objectLinks.get()));
         }
         return func;
     }

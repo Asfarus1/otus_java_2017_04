@@ -52,7 +52,7 @@ public class MyJsonBuilder {
         JsonWritingFuncContainer myJson = new JsonWritingWriterImpl();
         myJson.setSkipNullFields(isSkipNullFields);
 
-        ObjectWritingAlgorithm algorithm;
+        ObjectWritingAlgorithm algorithm = null;
         switch (fieldWritingMode){
             case Fields:
                 throw new IllegalArgumentException();
@@ -60,11 +60,43 @@ public class MyJsonBuilder {
             case Getters:
                 algorithm = new FunctionForWritingByGetters(myJson);
                 break;
-            default:
-                throw new IllegalArgumentException();
         }
         myJson.setObjectWritingAlgorithm(algorithm);
-        myJson.setCyclicLinksWritingMode(cyclicLinksWritingMode);
+
+        ObjectLinksWalker walker = null;
+        switch (cyclicLinksWritingMode) {
+            case NotLookFor:
+                walker = (obj, links) -> (stringBuilder, o) -> {
+                };
+                break;
+            case Skip:
+                walker = (obj, links) -> {
+                    if (links.contains(obj)) {
+                        return (stringBuilder, o) -> {
+                            return;
+                        };
+                    }
+                    ;
+                    links.add(obj);
+                    return (stringBuilder, o) -> {
+                    };
+                };
+                break;
+            case ThrowException:
+                walker = (obj, links) -> {
+                    if (links.contains(obj)) {
+                        return (stringBuilder, o) -> {
+                            throw new RuntimeException("cyclic link " + o);
+                        };
+                    }
+                    ;
+                    links.add(obj);
+                    return (stringBuilder, o) -> {
+                    };
+                };
+                break;
+        }
+        myJson.setObjectLinksWalker(walker);
         return myJson;
     }
 }

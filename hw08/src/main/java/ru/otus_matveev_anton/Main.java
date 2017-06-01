@@ -9,6 +9,7 @@ import ru.otus_matveev_anton.myjson.MyJsonBuilder;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 
 public class Main {
     public static void main(String[] args) throws IOException {
@@ -17,7 +18,7 @@ public class Main {
         product1.setTitle("телевизор");
         product1.setVendor("");
         product1.setCharacteristics(Arrays.asList(new Characteristic[]{new WeightCharacteristic(12), new ColorCharacteristic("red")}));
-//        product1.setParts(Collections.singletonList(product1));
+        product1.setParts(Collections.singletonList(product1));
 
         System.out.println("toString:");
         System.out.println(product1);
@@ -37,10 +38,11 @@ public class Main {
         System.out.println("myJson:");
 //        System.out.println(myJson.toJson(Arrays.asList(new String[]{"11111","222222"})));
 //        System.out.println(myJson.toJson(new String[][]{{"11111","222222"},{"fdf"}}));
-        System.out.println(myJson.toJson(new ColorCharacteristic("red")));
-        System.out.println(myJson.toJson(product1));
-        System.out.println(new MyJsonBuilder().setSkipNullFields(true).buildWriter().toJson(product1));
-        System.out.println("---------");
+        System.out.println(new MyJsonBuilder().setSkipNullFields(true).setCyclicLinksWritingMode(MyJsonBuilder.CyclicLinksWritingMode.ThrowException).buildWriter().toJson(product1));
+//        System.out.println(myJson.toJson(new ColorCharacteristic("red")));
+//        System.out.println(myJson.toJson(product1));
+//        System.out.println(new MyJsonBuilder().setSkipNullFields(true).buildWriter().toJson(product1));
+//        System.out.println("---------");
 
     }
 }

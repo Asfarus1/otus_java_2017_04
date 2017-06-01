@@ -17,4 +17,13 @@ public interface FunctionPart extends BiConsumer<StringBuilder, Object> {
             after.accept(l, r);
         };
     }
+
+    default FunctionPart andBefore(BiConsumer<? super StringBuilder, ? super Object> before) {
+        Objects.requireNonNull(before);
+
+        return (l, r) -> {
+            before.accept(l, r);
+            accept(l, r);
+        };
+    }
 }

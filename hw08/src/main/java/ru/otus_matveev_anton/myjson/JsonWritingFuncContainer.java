@@ -7,5 +7,5 @@ interface JsonWritingFuncContainer extends JsonWriter{
 
     void setSkipNullFields(boolean isSkipNullFields);
 
-    void setCyclicLinksWritingMode(MyJsonBuilder.CyclicLinksWritingMode mode);
+    void setObjectLinksWalker(ObjectLinksWalker linksWalker);
 }
