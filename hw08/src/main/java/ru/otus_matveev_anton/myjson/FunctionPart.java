@@ -1,29 +1,19 @@
 package ru.otus_matveev_anton.myjson;
 
 import java.util.Objects;
-import java.util.function.BiConsumer;
+import java.util.Set;
 
-/**
- * Created by asfarus on 31.05.2017.
- */
 @FunctionalInterface
-public interface FunctionPart extends BiConsumer<StringBuilder, Object> {
-    @Override
-    default FunctionPart andThen(BiConsumer<? super StringBuilder, ? super Object> after) {
+public interface FunctionPart{
+
+    void accept(StringBuilder sb, Object obj, Set<Object> objectsLinks);
+
+    default FunctionPart andThen(FunctionPart after) {
         Objects.requireNonNull(after);
 
-        return (l, r) -> {
-            accept(l, r);
-            after.accept(l, r);
-        };
-    }
-
-    default FunctionPart andBefore(BiConsumer<? super StringBuilder, ? super Object> before) {
-        Objects.requireNonNull(before);
-
-        return (l, r) -> {
-            before.accept(l, r);
-            accept(l, r);
+        return (sb,v,set) -> {
+            accept(sb,v,set);
+            after.accept(sb,v,set);
         };
     }
 }

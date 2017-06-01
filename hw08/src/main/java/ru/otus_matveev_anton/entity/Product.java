@@ -2,9 +2,6 @@ package ru.otus_matveev_anton.entity;
 
 import java.util.List;
 
-/**
- * Created by Matveev.AV1 on 31.05.2017.
- */
 public class Product {
     private Long id;
     private String title;
@@ -13,10 +10,15 @@ public class Product {
     transient private int lastPrice;
     private List<Characteristic> characteristics;
     private List<Product> parts;
+    private Product parent;
 
-//    public String getVendor() {
-//        return vendor;
-//    }
+    public Product getParent() {
+        return parent;
+    }
+
+    public void setParent(Product parent) {
+        this.parent = parent;
+    }
 
     public void setVendor(String vendor) {
         this.vendor = vendor;

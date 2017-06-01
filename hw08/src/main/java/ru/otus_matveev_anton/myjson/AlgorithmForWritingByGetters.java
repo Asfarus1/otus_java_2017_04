@@ -3,18 +3,21 @@ package ru.otus_matveev_anton.myjson;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-class FunctionForWritingByGetters implements ObjectWritingAlgorithm {
-    private JsonWritingFuncContainer myJson;
+public class AlgorithmForWritingByGetters implements ObjectWritingAlgorithm {
+    private JsonWritingFuncProvider funcProvider;
+    private FieldFilter fieldFilter;
 
-    FunctionForWritingByGetters(JsonWritingFuncContainer myJson) {
-        this.myJson = myJson;
+    public void setFieldFilter(FieldFilter fieldFilter) {
+        this.fieldFilter = fieldFilter;
+    }
+
+    public void setFuncProvider(JsonWritingFuncProvider funcProvider) {
+        this.funcProvider = funcProvider;
     }
 
     @Override
-    public FunctionPart getFunctionalForParse(Class clazz, boolean isSkipNullFields) {
-        FunctionPart func = (sb, v) -> {
-            sb.append('{');
-        };
+    public FunctionPart getFunctionForWritingObject(Class clazz) {
+        FunctionPart func = (sb, v, set) -> sb.append('{');
 
         Method[] methods = clazz.getMethods();
 
@@ -31,23 +34,23 @@ class FunctionForWritingByGetters implements ObjectWritingAlgorithm {
                 continue;
             }
             final String fieldName = mName;
-            func = func.andThen((sb, v) -> {
-                Object field = null;
+
+            func = func.andThen((sb, v, set) -> {
+                Object field;
                 try {
                     field = method.invoke(v);
                 } catch (IllegalAccessException | InvocationTargetException e) {
                     throw new RuntimeException(String.format("%s.%s: can't get value of field", clazz.getCanonicalName(), fieldName), e);
                 }
-                if (field != null || !isSkipNullFields) {
+                if (fieldFilter.test(fieldName, field, set)) {
                     sb.append('"')
                             .append(fieldName)
                             .append("\":");
-                    myJson.getFuncToJson(field).accept(sb, field);
+                    funcProvider.getFuncToJson(field).accept(sb, field, set);
                     sb.append(',');
                 }
-
             });
         }
-        return func.andThen((sb, v) -> sb.setCharAt(sb.length() - 1, '}'));
+        return func.andThen((sb, v, set) -> sb.setCharAt(sb.length() - 1, '}'));
     }
 }
