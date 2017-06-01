@@ -53,8 +53,8 @@ class JsonWritingWriterImpl implements JsonWritingFuncContainer,JsonWriter{
 
         if (func == null) {
             func = getStandardFuncToJson(obj);
-            mapToJson.putIfAbsent(clazz, new SoftReference<>(func));
             func = func.andBefore(objectLinksWalker.visitLink(obj, objectLinks.get()));
+            mapToJson.putIfAbsent(clazz, new SoftReference<>(func));
         }
         return func;
     }

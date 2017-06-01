@@ -70,30 +70,22 @@ public class MyJsonBuilder {
                 };
                 break;
             case Skip:
-                walker = (obj, links) -> {
-                    if (links.contains(obj)) {
-                        return (stringBuilder, o) -> {
-                            return;
+                walker = (obj, links) ->
+                        (stringBuilder, o) -> {
+                            if (links.contains(obj)) {
+                                return;
+                            }
+                            links.add(obj);
                         };
-                    }
-                    ;
-                    links.add(obj);
-                    return (stringBuilder, o) -> {
-                    };
-                };
                 break;
             case ThrowException:
-                walker = (obj, links) -> {
-                    if (links.contains(obj)) {
-                        return (stringBuilder, o) -> {
+                walker = (obj, links) ->
+                    (stringBuilder, o) -> {
+                        if (links.contains(obj)) {
                             throw new RuntimeException("cyclic link " + o);
-                        };
-                    }
-                    ;
-                    links.add(obj);
-                    return (stringBuilder, o) -> {
+                        }
+                        links.add(obj);
                     };
-                };
                 break;
         }
         myJson.setObjectLinksWalker(walker);

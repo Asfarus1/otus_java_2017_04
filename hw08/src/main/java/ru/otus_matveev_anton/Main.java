@@ -38,7 +38,7 @@ public class Main {
         System.out.println("myJson:");
 //        System.out.println(myJson.toJson(Arrays.asList(new String[]{"11111","222222"})));
 //        System.out.println(myJson.toJson(new String[][]{{"11111","222222"},{"fdf"}}));
-        System.out.println(new MyJsonBuilder().setSkipNullFields(true).setCyclicLinksWritingMode(MyJsonBuilder.CyclicLinksWritingMode.ThrowException).buildWriter().toJson(product1));
+        System.out.println(new MyJsonBuilder().setSkipNullFields(true).setCyclicLinksWritingMode(MyJsonBuilder.CyclicLinksWritingMode.Skip).buildWriter().toJson(product1));
 //        System.out.println(myJson.toJson(new ColorCharacteristic("red")));
 //        System.out.println(myJson.toJson(product1));
 //        System.out.println(new MyJsonBuilder().setSkipNullFields(true).buildWriter().toJson(product1));
