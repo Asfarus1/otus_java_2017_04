@@ -12,6 +12,7 @@ public class Product {
     private String vendor;
     transient private int lastPrice;
     private List<Characteristic> characteristics;
+    private List<Product> parts;
 
 //    public String getVendor() {
 //        return vendor;
@@ -60,6 +61,14 @@ public class Product {
 
     public void setCharacteristics(List<Characteristic> characteristics) {
         this.characteristics = characteristics;
+    }
+
+    public List<Product> getParts() {
+        return parts;
+    }
+
+    public void setParts(List<Product> parts) {
+        this.parts = parts;
     }
 
     @Override
