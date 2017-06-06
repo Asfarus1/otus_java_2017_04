@@ -1,0 +1,1 @@
+create table users (id bigint(20) auto_increment, name varchar(255), age int(3), primary key (id))
