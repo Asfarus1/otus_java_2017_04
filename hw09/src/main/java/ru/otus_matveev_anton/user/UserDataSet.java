@@ -1,31 +1,20 @@
 package ru.otus_matveev_anton.user;
 
-import javax.persistence.*;
-import java.math.BigInteger;
+import ru.otus_matveev_anton.db.DataSet;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.Table;
 
 @Entity
 @Table(name = "users")
-public class UserDataSet {
-
-    @Id
-    @Column(name = "id", length = 20)
-    //long -длина 19
-    private BigInteger id;
+public class UserDataSet extends DataSet{
 
     @Column(name = "name")
     private String name;
 
     @Column(name = "age", length = 3, nullable = false)
     private short age;
-
-
-    public BigInteger getId() {
-        return id;
-    }
-
-    public void setId(BigInteger id) {
-        this.id = id;
-    }
 
     public String getName() {
         return name;

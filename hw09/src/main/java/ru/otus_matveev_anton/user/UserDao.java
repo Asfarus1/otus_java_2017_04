@@ -29,7 +29,7 @@ public class UserDao {
             UserDataSet result = null;
             if (resultSet.next()){
                 result = new UserDataSet();
-                result.setId(resultSet.getBigDecimal("id").toBigInteger());
+                result.setId(resultSet.getLong("id"));
                 result.setName(resultSet.getString("name"));
                 result.setAge(resultSet.getShort("age"));
             }

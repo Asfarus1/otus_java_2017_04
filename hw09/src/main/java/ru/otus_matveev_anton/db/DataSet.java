@@ -1,0 +1,19 @@
+package ru.otus_matveev_anton.db;
+
+
+import javax.persistence.Column;
+import javax.persistence.Id;
+
+public class DataSet {
+    @Id
+    @Column(name = "id", length = 20)
+    private long id;
+
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
+}
