@@ -29,11 +29,13 @@ public class Executor {
     public long ExecuteWithReturningKey(String insert){
         try (PreparedStatement stmt = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)){
             stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()){
-                return rs.getLong(1);
+            if (connection.getMetaData().supportsGetGeneratedKeys()) {
+                ResultSet rs = stmt.getGeneratedKeys();
+                if (rs.next()) {
+                    return rs.getLong(1);
+                }
             }
-            return 0;
+            return -1;
         } catch (SQLException e) {
             throw new DBException(e);
         }
