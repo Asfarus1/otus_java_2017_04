@@ -1,9 +1,6 @@
 package ru.otus_matveev_anton.db;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 
 public class Executor {
     private final Connection connection;
@@ -24,6 +21,19 @@ public class Executor {
         try (Statement stmt = connection.createStatement();
              ResultSet resultSet = stmt.executeQuery(query)){
             return handler.handle(resultSet);
+        } catch (SQLException e) {
+            throw new DBException(e);
+        }
+    }
+
+    public long ExecuteWithReturningKey(String insert){
+        try (PreparedStatement stmt = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)){
+            stmt.executeUpdate();
+            ResultSet rs = stmt.getGeneratedKeys();
+            if (rs.next()){
+                return rs.getLong(1);
+            }
+            return 0;
         } catch (SQLException e) {
             throw new DBException(e);
         }
