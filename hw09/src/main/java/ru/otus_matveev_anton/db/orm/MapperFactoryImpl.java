@@ -1,6 +1,7 @@
 package ru.otus_matveev_anton.db.orm;
 
 import ru.otus_matveev_anton.db.DataSet;
+import ru.otus_matveev_anton.db.Executor;
 
 import javax.persistence.Column;
 import javax.persistence.Id;
@@ -9,6 +10,7 @@ import java.lang.ref.SoftReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +22,7 @@ public class MapperFactoryImpl implements MapperFactory{
     private final Map<Class<?>, SoftReference<Mapper>> mappers;
 
     public MapperFactoryImpl() {
-        this.mappers = new ConcurrentHashMap();
+        this.mappers = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -34,15 +36,6 @@ public class MapperFactoryImpl implements MapperFactory{
         return mapper;
     }
 
-    private static class ColumnMapper<T extends DataSet, V>{
-
-        private String fieldName;
-
-        Getter<T, V> getter;
-
-        Setter<T, V> setter;
-    }
-
     private <T extends DataSet> Mapper<T> createMapper(Class<T> clazz) {
         Table table = clazz.getDeclaredAnnotation(Table.class);
         String tableName;
@@ -50,28 +43,38 @@ public class MapperFactoryImpl implements MapperFactory{
             tableName = clazz.getSimpleName();
         }
 
-        List<ColumnMapper> columnMapperList = new ArrayList<>();
         Field[] fields = clazz.getFields();
 
         final StringBuilder updateB = new StringBuilder("UPDATE ").append(tableName).append(" SET ");
-        final StringBuilder insertB = new StringBuilder("INSERT INTO ").append(tableName).append("(id,");
+        final StringBuilder insertB = new StringBuilder("INSERT INTO ").append(tableName).append("(");
+
+        HandlerBuilder<T> handlerBuilder = (rs) -> {
+            T obj = clazz.newInstance();
+            obj.setId(rs.getLong("id"));
+            return obj;
+        };
+
+        ArgsSetterBuilder<T> argsSetterBuilder = (lst, obj) -> {};
+        int columnCount = 0;
+        String fieldName;
 
         for (Field field : fields) {
             if (!Modifier.isTransient(field.getModifiers()) && !field.isAnnotationPresent(Id.class)) {
 
-                ColumnMapper<T, Object> columnMapper = new ColumnMapper<>();
-
                 Column column = field.getAnnotation(Column.class);
-                if (column == null || (columnMapper.fieldName = table.name()) == null || columnMapper.fieldName.isEmpty()) {
-                    columnMapper.fieldName = field.getName();
+                if (column == null || (fieldName = table.name()) == null || fieldName.isEmpty()) {
+                    fieldName = field.getName();
                 }
-                columnMapper.setter = getSetter(field);
-                columnMapper.getter = getGetter(field);
 
-                columnMapperList.add(columnMapper);
+                final String columnName = fieldName;
 
-                updateB.append(columnMapper.fieldName).append("=?,");
-                insertB.append(columnMapper.fieldName).append(',');
+                handlerBuilder = handlerBuilder.andThen((obj,rs)-> getSetter(field).set(obj, rs.getObject(columnName)));
+
+                argsSetterBuilder = argsSetterBuilder.andThen((lst, obj)->lst.add(getGetter(field).get(obj)));
+
+                updateB.append(columnName).append("=?,");
+                insertB.append(columnName).append(',');
+                columnCount++;
             }
         }
 
@@ -80,32 +83,38 @@ public class MapperFactoryImpl implements MapperFactory{
 
         insertB.setCharAt(insertB.length()-1, ')');
         insertB.append(" VALUES(");
-        columnMapperList.forEach((s)->insertB.append("?,"));
+        for (int i = 0; i < columnCount; i++) {
+            insertB.append("?,");
+        }
         insertB.setCharAt(insertB.length()-1, ')');
 
-        HandlerBuilder<T> handlerBuilder = (rs) -> {
-            T obj = clazz.newInstance();
-            obj.setId(rs.getLong("id"));
-            return obj;
-        };
-
-        for (ColumnMapper columnMapper : columnMapperList) {
-            handlerBuilder = handlerBuilder.andThen((obj,rs)-> columnMapper.setter.set(obj, rs.getObject(columnMapper.fieldName)));
-        }
-
-        final String query = String.format("SELECT * FROM %s WHERE id=", tableName);
+        final String query = String.format("SELECT * FROM %s WHERE id=?", tableName);
         final String update = updateB.toString();
         final String insert = insertB.toString();
+        final ArgsSetterBuilder<T> argsSetter = argsSetterBuilder;
+        final HandlerBuilder<T> handler = handlerBuilder;
 
         return new Mapper<T>() {
-            @Override
-            public void save(T dataSet) {
 
+            @Override
+            public void save(T dataSet, Connection connection) throws Exception {
+                List args = new ArrayList();
+                argsSetter.aply(args, dataSet);
+                Executor executor = new Executor(connection);
+                if (dataSet.getId() == 0){
+                    long newId = executor.ExecuteWithReturningKey(insert, args.toArray(new Object[args.size()]));
+                    dataSet.setId(newId);
+                }else {
+                    Object[] params =  args.toArray(new Object[args.size() + 1]);
+                    params[params.length-1] = dataSet.getId();
+                    executor.ExecuteUpdate(update, params);
+                }
             }
 
             @Override
-            public T get(long id) {
-                return null;
+            public T get(long id, Connection connection) {
+                Executor executor = new Executor(connection);
+                return executor.ExecuteQuery(query, handler::handle, id);
             }
         };
     }
@@ -119,6 +128,18 @@ public class MapperFactoryImpl implements MapperFactory{
                 T res = handle(rs);
                 after.set(res, rs);
                 return res;
+            };
+        }
+    }
+
+    private interface ArgsSetterBuilder<T extends DataSet>{
+        void aply(List lst, T obj) throws Exception;
+
+        default ArgsSetterBuilder andThen(ArgsSetterBuilder<T> after) {
+            Objects.requireNonNull(after);
+            return (lst, obj) -> {
+                aply(lst, (T) obj);
+                after.aply(lst, (T) obj);
             };
         }
     }

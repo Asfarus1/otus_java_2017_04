@@ -13,16 +13,17 @@ public class Executor {
         try (PreparedStatement stmt = connection.prepareStatement(update)){
             setArgs(stmt, args);
             return stmt.executeUpdate();
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DBException(e);
         }
     }
 
-    public <T> T ExecuteQuery(String query, ResultHandler<T> handler){
-        try (Statement stmt = connection.createStatement();
-             ResultSet resultSet = stmt.executeQuery(query)){
+    public <T> T ExecuteQuery(String query, ResultHandler<T> handler, Object... args) {
+        try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            setArgs(stmt, args);
+            ResultSet resultSet = stmt.executeQuery();
             return handler.handle(resultSet);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DBException(e);
         }
     }
@@ -38,7 +39,7 @@ public class Executor {
                 }
             }
             return -1;
-        } catch (SQLException e) {
+        } catch (Exception e) {
             throw new DBException(e);
         }
     }

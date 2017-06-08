@@ -14,7 +14,7 @@ public class UserDataSet extends DataSet{
     private String name;
 
     @Column(name = "age", length = 3, nullable = false)
-    private short age;
+    private int age;
 
     public String getName() {
         return name;
@@ -24,11 +24,11 @@ public class UserDataSet extends DataSet{
         this.name = name;
     }
 
-    public short getAge() {
+    public int getAge() {
         return age;
     }
 
-    public void setAge(short age) {
+    public void setAge(int age) {
         this.age = age;
     }
 }

@@ -2,8 +2,10 @@ package ru.otus_matveev_anton.db.orm;
 
 import ru.otus_matveev_anton.db.DataSet;
 
-public interface Mapper<T extends DataSet> {
-    void save(T dataSet);
+import java.sql.Connection;
 
-    T get(long id);
+public interface Mapper<T extends DataSet> {
+    void save(T dataSet, Connection connection) throws Exception;
+
+    T get(long id, Connection connection);
 }
