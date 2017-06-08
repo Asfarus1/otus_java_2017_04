@@ -56,6 +56,13 @@
             <version>1.0</version>
         </dependency>
 
+        <!-- https://mvnrepository.com/artifact/postgresql/postgresql -->
+        <dependency>
+            <groupId>postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>9.3-1102.jdbc41</version>
+        </dependency>
+
     </dependencies>
 
 </project>

@@ -10,16 +10,9 @@ public class Main {
     public static void main(String[] args) throws IOException, ClassNotFoundException, SQLException {
         Properties prop = new Properties();
         prop.load(Main.class.getClassLoader().getResourceAsStream("db.cfg"));
-        String driverName = prop.getProperty("driver");
-        Class.forName(driverName);
-        String url = String.format("%s:%s/%s",
-                driverName,
-                prop.getProperty("server_url"),
-                prop.getProperty("db_name"));
+        Class.forName(prop.getProperty("driver"));
 
-        try(Connection connection = DriverManager.getConnection(url,
-                prop.getProperty("user"),
-                prop.getProperty("password"))){
+        try(Connection connection = DriverManager.getConnection(prop.getProperty("url"),prop)){
 
         }
     }
