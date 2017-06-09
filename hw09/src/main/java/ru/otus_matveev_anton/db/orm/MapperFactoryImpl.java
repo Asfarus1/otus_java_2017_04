@@ -36,12 +36,13 @@ public class MapperFactoryImpl implements MapperFactory{
         return mapper;
     }
 
+    @Override
+    public <T extends DataSet> void createTable(Class<T> clazz) {
+
+    }
+
     private <T extends DataSet> Mapper<T> createMapper(Class<T> clazz) {
-        Table table = clazz.getDeclaredAnnotation(Table.class);
-        String tableName;
-        if (table == null || (tableName = table.name()).isEmpty()) {
-            tableName = clazz.getSimpleName();
-        }
+        String tableName = getTableName(clazz);
 
         Field[] fields = clazz.getFields();
 
@@ -56,17 +57,10 @@ public class MapperFactoryImpl implements MapperFactory{
 
         ArgsSetterBuilder<T> argsSetterBuilder = (lst, obj) -> {};
         int columnCount = 0;
-        String fieldName;
 
         for (Field field : fields) {
             if (!Modifier.isTransient(field.getModifiers()) && !field.isAnnotationPresent(Id.class)) {
-
-                Column column = field.getAnnotation(Column.class);
-                if (column == null || (fieldName = table.name()) == null || fieldName.isEmpty()) {
-                    fieldName = field.getName();
-                }
-
-                final String columnName = fieldName;
+                final String columnName = getColumnName(field);
 
                 handlerBuilder = handlerBuilder.andThen((obj,rs)-> getSetter(field).set(obj, rs.getObject(columnName)));
 
@@ -198,5 +192,23 @@ public class MapperFactoryImpl implements MapperFactory{
             }
         }
         return null;
+    }
+
+    private <T extends DataSet, R> String getTableName(Class<T> clazz){
+        Table table = clazz.getDeclaredAnnotation(Table.class);
+        String tableName;
+        if (table == null || (tableName = table.name()).isEmpty()) {
+            tableName = clazz.getSimpleName();
+        }
+        return tableName;
+    }
+
+    private String getColumnName(Field field){
+        String fieldName;
+        Column column = field.getAnnotation(Column.class);
+        if (column == null || (fieldName = column.name()) == null || fieldName.isEmpty()) {
+            fieldName = field.getName();
+        }
+        return fieldName;
     }
 }

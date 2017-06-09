@@ -25,4 +25,8 @@ public class SimpleDAO {
            throw new DBException(e);
         }
     }
+
+    public <T extends DataSet> void createTableIfNotExists(Class<T> clazz){
+//        factory.
+    }
 }

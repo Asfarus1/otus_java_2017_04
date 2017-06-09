@@ -4,4 +4,6 @@ import ru.otus_matveev_anton.db.DataSet;
 
 public interface MapperFactory {
     <T extends DataSet> Mapper<T> get(Class<T> clazz);
+
+    <T extends DataSet> void createTable(Class<T> clazz);
 }
