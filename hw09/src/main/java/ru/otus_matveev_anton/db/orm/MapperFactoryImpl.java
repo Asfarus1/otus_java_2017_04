@@ -1,16 +1,14 @@
 package ru.otus_matveev_anton.db.orm;
 
+import ru.otus_matveev_anton.db.Configuration;
 import ru.otus_matveev_anton.db.DataSet;
 import ru.otus_matveev_anton.db.Executor;
 
 import javax.persistence.Column;
 import javax.persistence.Id;
-import javax.persistence.Table;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,49 +16,68 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static ru.otus_matveev_anton.db.orm.ReflectionHelper.*;
+
 public class MapperFactoryImpl implements MapperFactory{
     private final Map<Class<?>, SoftReference<Mapper>> mappers;
+    private final Configuration configuration;
 
-    public MapperFactoryImpl() {
+    public MapperFactoryImpl(Configuration configuration) {
         this.mappers = new ConcurrentHashMap<>();
+        this.configuration = configuration;
     }
 
     @Override
     public <T extends DataSet> Mapper<T> get(Class<T> clazz) {
         SoftReference<Mapper> ref = mappers.get(clazz);
-        Mapper<T> mapper = null;
-        if (ref == null){
+        Mapper<T> mapper;
+        if (ref == null) {
             mapper = createMapper(clazz);
             mappers.putIfAbsent(clazz, new SoftReference<>(mapper));
+        }else {
+            mapper = ref.get();
         }
         return mapper;
     }
 
     @Override
-    public <T extends DataSet> void createTable(Class<T> clazz) {
+    public <T extends DataSet> String createTableQuery(Class<T> clazz){
+        String tableName = getTableName(clazz);
+        String createPattern = configuration.getCreatePattern();
 
+        StringBuilder createB = new StringBuilder();
+
+        Field[] fields = clazz.getDeclaredFields();
+        for (Field field : fields) {
+            if (!Modifier.isTransient(field.getModifiers()) && !field.isAnnotationPresent(Id.class)) {
+                createB.append(',').append(getColumnDefinition(field));
+            }
+        }
+
+        return String.format(createPattern, tableName, createB.toString());
     }
 
     private <T extends DataSet> Mapper<T> createMapper(Class<T> clazz) {
         String tableName = getTableName(clazz);
-
-        Field[] fields = clazz.getFields();
 
         final StringBuilder updateB = new StringBuilder("UPDATE ").append(tableName).append(" SET ");
         final StringBuilder insertB = new StringBuilder("INSERT INTO ").append(tableName).append("(");
 
         HandlerBuilder<T> handlerBuilder = (rs) -> {
             T obj = clazz.newInstance();
+            rs.next();
             obj.setId(rs.getLong("id"));
             return obj;
         };
 
         ArgsSetterBuilder<T> argsSetterBuilder = (lst, obj) -> {};
         int columnCount = 0;
+        Field[] fields = clazz.getDeclaredFields();
 
         for (Field field : fields) {
             if (!Modifier.isTransient(field.getModifiers()) && !field.isAnnotationPresent(Id.class)) {
-                final String columnName = getColumnName(field);
+                String columnName = getColumnName(field);
+                Column column = field.getAnnotation(Column.class);
 
                 handlerBuilder = handlerBuilder.andThen((obj,rs)-> getSetter(field).set(obj, rs.getObject(columnName)));
 
@@ -91,10 +108,10 @@ public class MapperFactoryImpl implements MapperFactory{
         return new Mapper<T>() {
 
             @Override
-            public void save(T dataSet, Connection connection) throws Exception {
+            public void save(T dataSet) throws Exception {
                 List args = new ArrayList();
                 argsSetter.aply(args, dataSet);
-                Executor executor = new Executor(connection);
+                Executor executor = new Executor(configuration);
                 if (dataSet.getId() == 0){
                     long newId = executor.ExecuteWithReturningKey(insert, args.toArray(new Object[args.size()]));
                     dataSet.setId(newId);
@@ -106,8 +123,8 @@ public class MapperFactoryImpl implements MapperFactory{
             }
 
             @Override
-            public T get(long id, Connection connection) {
-                Executor executor = new Executor(connection);
+            public T get(long id) {
+                Executor executor = new Executor(configuration);
                 return executor.ExecuteQuery(query, handler::handle, id);
             }
         };
@@ -136,79 +153,5 @@ public class MapperFactoryImpl implements MapperFactory{
                 after.aply(lst, (T) obj);
             };
         }
-    }
-
-    private <T extends DataSet, V> Setter<T,V> getSetter(Field field){
-        String fieldName = field.getName();
-        try {
-            return field.getDeclaringClass().getDeclaredMethod(String.format("set%S%s" + fieldName.substring(0,1), fieldName.substring(1)), field.getType())::invoke;
-        } catch (NoSuchMethodException e) {
-            return (obj, value)-> setFieldValue(field, obj, value);
-        }
-    }
-
-    private <T extends DataSet, V> Getter<T,V> getGetter(Field field){
-        String fieldName = field.getName();
-
-        try {
-            Method method = field.getDeclaringClass().getDeclaredMethod(String.format("get%S%s" + fieldName.substring(0, 1), fieldName.substring(1)), field.getType());
-            return (obj) -> {
-                V res = (V) method.invoke(obj);
-                return res;
-            };
-        } catch (NoSuchMethodException e) {
-            return  (obj)-> getFieldValue(field, obj);
-        }
-    }
-
-    private <T extends DataSet, R> void setFieldValue(Field field, T obj, R value){
-        boolean accessible = field.isAccessible();
-        if (!accessible){
-            field.setAccessible(true);
-        }
-        try {
-            field.set(obj, value);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }finally {
-            if (!accessible){
-                field.setAccessible(false);
-            }
-        }
-    }
-
-    private <T extends DataSet, R> R getFieldValue(Field field, T obj){
-        boolean accessible = field.isAccessible();
-        if (!accessible){
-            field.setAccessible(true);
-        }
-        try {
-            return (R) field.get(obj);
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        }finally {
-            if (!accessible){
-                field.setAccessible(false);
-            }
-        }
-        return null;
-    }
-
-    private <T extends DataSet, R> String getTableName(Class<T> clazz){
-        Table table = clazz.getDeclaredAnnotation(Table.class);
-        String tableName;
-        if (table == null || (tableName = table.name()).isEmpty()) {
-            tableName = clazz.getSimpleName();
-        }
-        return tableName;
-    }
-
-    private String getColumnName(Field field){
-        String fieldName;
-        Column column = field.getAnnotation(Column.class);
-        if (column == null || (fieldName = column.name()) == null || fieldName.isEmpty()) {
-            fieldName = field.getName();
-        }
-        return fieldName;
     }
 }

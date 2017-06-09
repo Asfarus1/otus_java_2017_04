@@ -6,7 +6,7 @@ import javax.persistence.Id;
 
 public class DataSet {
     @Id
-    @Column(name = "id", length = 20)
+    @Column(name = "id")
     private long id;
 
     public long getId() {

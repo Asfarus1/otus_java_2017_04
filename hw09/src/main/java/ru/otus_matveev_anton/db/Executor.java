@@ -1,18 +1,23 @@
 package ru.otus_matveev_anton.db;
 
+import java.io.PrintStream;
 import java.sql.*;
+import java.util.Arrays;
 
 public class Executor {
+    private final Configuration configuration;
     private final Connection connection;
 
-    public Executor(Connection connection) {
-        this.connection = connection;
+    public Executor(Configuration configuration) {
+        this.configuration = configuration;
+        this.connection = configuration.getConnection();
     }
 
-    public int ExecuteUpdate(String update, Object... args) {
+    public void ExecuteUpdate(String update, Object... args) {
         try (PreparedStatement stmt = connection.prepareStatement(update)){
+            printQuery(update, args);
             setArgs(stmt, args);
-            return stmt.executeUpdate();
+            stmt.executeUpdate();
         } catch (Exception e) {
             throw new DBException(e);
         }
@@ -20,6 +25,7 @@ public class Executor {
 
     public <T> T ExecuteQuery(String query, ResultHandler<T> handler, Object... args) {
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            printQuery(query, args);
             setArgs(stmt, args);
             ResultSet resultSet = stmt.executeQuery();
             return handler.handle(resultSet);
@@ -30,9 +36,10 @@ public class Executor {
 
     public long ExecuteWithReturningKey(String insert, Object... args){
         try (PreparedStatement stmt = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)){
+            printQuery(insert, args);
             setArgs(stmt, args);
             stmt.executeUpdate();
-            if (connection.getMetaData().supportsGetGeneratedKeys()) {
+            if (configuration.getConnection().getMetaData().supportsGetGeneratedKeys()) {
                 ResultSet rs = stmt.getGeneratedKeys();
                 if (rs.next()) {
                     return rs.getLong(1);
@@ -47,18 +54,31 @@ public class Executor {
     private void setArgs(PreparedStatement stmt, Object... args) throws SQLException {
         for (int i = 0; i < args.length; i++) {
             if (args[i] == null){
-                stmt.setNull(i, Types.NULL);
+                stmt.setNull(i + 1, Types.NULL);
             }else if (args[i] instanceof String){
-                stmt.setString(i, (String) args[i]);
+                stmt.setString(i + 1, (String) args[i]);
             }else if (args[i] instanceof Short){
-                stmt.setShort(i, (Short) args[i]);
+                stmt.setShort(i + 1, (Short) args[i]);
             }else if (args[i] instanceof Integer){
-                stmt.setInt(i,(Integer) args[i]);
+                stmt.setInt(i + 1,(Integer) args[i]);
             }else if (args[i] instanceof Long){
-                stmt.setLong(i,(Long) args[i]);
+                stmt.setLong(i + 1,(Long) args[i]);
             }else {
                 throw new IllegalArgumentException("args type must be one of Long, String, Short, Integer");
             }
+        }
+    }
+
+    private void printQuery(String query, Object... args){
+        if (configuration.isShowSql()){
+            PrintStream log = configuration.getLog();
+            log.println("sql:" + query);
+            if (args.length > 0){
+                log.print("args:");
+                Arrays.stream(args).forEach((a)->log.printf("%s;",a));
+                log.println();
+            }
+            log.println("---");
         }
     }
 }
