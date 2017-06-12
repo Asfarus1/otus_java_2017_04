@@ -1,10 +1,5 @@
-package ru.otus_matveev_anton.db.orm;
+package ru.otus_matveev_anton.db.my_orm;
 
-import ru.otus_matveev_anton.db.Configuration;
-import ru.otus_matveev_anton.db.DataSet;
-import ru.otus_matveev_anton.db.Executor;
-
-import javax.persistence.Column;
 import javax.persistence.Id;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Field;
@@ -16,15 +11,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
-import static ru.otus_matveev_anton.db.orm.ReflectionHelper.*;
+import static ru.otus_matveev_anton.db.my_orm.ReflectionHelper.*;
 
 public class MapperFactoryImpl implements MapperFactory{
     private final Map<Class<?>, SoftReference<Mapper>> mappers;
-    private final Configuration configuration;
+    private final MyOrmConfig myOrmConfig;
 
-    public MapperFactoryImpl(Configuration configuration) {
+    MapperFactoryImpl(MyOrmConfig myOrmConfig) {
         this.mappers = new ConcurrentHashMap<>();
-        this.configuration = configuration;
+        this.myOrmConfig = myOrmConfig;
     }
 
     @Override
@@ -41,9 +36,9 @@ public class MapperFactoryImpl implements MapperFactory{
     }
 
     @Override
-    public <T extends DataSet> String createTableQuery(Class<T> clazz){
+    public <T extends DataSet> void createTableQuery(Class<T> clazz){
         String tableName = getTableName(clazz);
-        String createPattern = configuration.getCreatePattern();
+        String createPattern = myOrmConfig.getCreatePattern();
 
         StringBuilder createB = new StringBuilder();
 
@@ -53,8 +48,8 @@ public class MapperFactoryImpl implements MapperFactory{
                 createB.append(',').append(getColumnDefinition(field));
             }
         }
-
-        return String.format(createPattern, tableName, createB.toString());
+        Executor executor = new Executor(myOrmConfig);
+        executor.ExecuteUpdate(String.format(createPattern, tableName, createB.toString()));
     }
 
     private <T extends DataSet> Mapper<T> createMapper(Class<T> clazz) {
@@ -77,7 +72,6 @@ public class MapperFactoryImpl implements MapperFactory{
         for (Field field : fields) {
             if (!Modifier.isTransient(field.getModifiers()) && !field.isAnnotationPresent(Id.class)) {
                 String columnName = getColumnName(field);
-                Column column = field.getAnnotation(Column.class);
 
                 handlerBuilder = handlerBuilder.andThen((obj,rs)-> getSetter(field).set(obj, rs.getObject(columnName)));
 
@@ -108,23 +102,28 @@ public class MapperFactoryImpl implements MapperFactory{
         return new Mapper<T>() {
 
             @Override
-            public void save(T dataSet) throws Exception {
-                List args = new ArrayList();
-                argsSetter.aply(args, dataSet);
-                Executor executor = new Executor(configuration);
-                if (dataSet.getId() == 0){
-                    long newId = executor.ExecuteWithReturningKey(insert, args.toArray(new Object[args.size()]));
-                    dataSet.setId(newId);
-                }else {
-                    Object[] params =  args.toArray(new Object[args.size() + 1]);
-                    params[params.length-1] = dataSet.getId();
-                    executor.ExecuteUpdate(update, params);
+            public void save(T dataSet) {
+                try {
+                    List args = new ArrayList();
+                    argsSetter.aply(args, dataSet);
+                    Executor executor = new Executor(myOrmConfig);
+
+                    if (dataSet.getId() == 0) {
+                        long newId = executor.ExecuteWithReturningKey(insert, args.toArray(new Object[args.size()]));
+                        dataSet.setId(newId);
+                    } else {
+                        Object[] params = args.toArray(new Object[args.size() + 1]);
+                        params[params.length - 1] = dataSet.getId();
+                        executor.ExecuteUpdate(update, params);
+                    }
+                } catch (Exception e) {
+                    throw new DBException(e);
                 }
             }
 
             @Override
             public T get(long id) {
-                Executor executor = new Executor(configuration);
+                Executor executor = new Executor(myOrmConfig);
                 return executor.ExecuteQuery(query, handler::handle, id);
             }
         };
@@ -153,5 +152,10 @@ public class MapperFactoryImpl implements MapperFactory{
                 after.aply(lst, (T) obj);
             };
         }
+    }
+
+    @Override
+    public MyOrmConfig getConfiguration() {
+        return myOrmConfig;
     }
 }

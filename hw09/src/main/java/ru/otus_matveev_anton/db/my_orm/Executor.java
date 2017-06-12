@@ -1,19 +1,19 @@
-package ru.otus_matveev_anton.db;
+package ru.otus_matveev_anton.db.my_orm;
 
 import java.io.PrintStream;
 import java.sql.*;
 import java.util.Arrays;
 
 public class Executor {
-    private final Configuration configuration;
+    private final MyOrmConfig myOrmConfig;
     private final Connection connection;
 
-    public Executor(Configuration configuration) {
-        this.configuration = configuration;
-        this.connection = configuration.getConnection();
+    public Executor(MyOrmConfig myOrmConfig) {
+        this.myOrmConfig = myOrmConfig;
+        this.connection = myOrmConfig.getConnection();
     }
 
-    public void ExecuteUpdate(String update, Object... args) {
+    void ExecuteUpdate(String update, Object... args) {
         try (PreparedStatement stmt = connection.prepareStatement(update)){
             printQuery(update, args);
             setArgs(stmt, args);
@@ -23,7 +23,7 @@ public class Executor {
         }
     }
 
-    public <T> T ExecuteQuery(String query, ResultHandler<T> handler, Object... args) {
+    <T> T ExecuteQuery(String query, ResultHandler<T> handler, Object... args) {
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
             printQuery(query, args);
             setArgs(stmt, args);
@@ -34,12 +34,12 @@ public class Executor {
         }
     }
 
-    public long ExecuteWithReturningKey(String insert, Object... args){
+    long ExecuteWithReturningKey(String insert, Object... args){
         try (PreparedStatement stmt = connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)){
             printQuery(insert, args);
             setArgs(stmt, args);
             stmt.executeUpdate();
-            if (configuration.getConnection().getMetaData().supportsGetGeneratedKeys()) {
+            if (connection.getMetaData().supportsGetGeneratedKeys()) {
                 ResultSet rs = stmt.getGeneratedKeys();
                 if (rs.next()) {
                     return rs.getLong(1);
@@ -70,8 +70,8 @@ public class Executor {
     }
 
     private void printQuery(String query, Object... args){
-        if (configuration.isShowSql()){
-            PrintStream log = configuration.getLog();
+        if (myOrmConfig.isShowSql()){
+            PrintStream log = myOrmConfig.getLog();
             log.println("sql:" + query);
             if (args.length > 0){
                 log.print("args:");

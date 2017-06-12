@@ -1,4 +1,4 @@
-package ru.otus_matveev_anton.db;
+package ru.otus_matveev_anton.db.my_orm;
 
 import java.sql.ResultSet;
 

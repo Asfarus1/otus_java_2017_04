@@ -1,6 +1,4 @@
-package ru.otus_matveev_anton.db.orm;
-
-import ru.otus_matveev_anton.db.DataSet;
+package ru.otus_matveev_anton.db.my_orm;
 
 import javax.persistence.Column;
 import javax.persistence.Table;

@@ -1,14 +1,12 @@
-package ru.otus_matveev_anton.user;
+package ru.otus_matveev_anton.db.data_sets;
 
-import ru.otus_matveev_anton.db.DataSet;
+import ru.otus_matveev_anton.db.my_orm.DataSet;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
-import javax.persistence.Table;
 
 @Entity
-@Table(name = "users")
-public class UserDataSet extends DataSet{
+public class UserDataSet extends DataSet {
 
     @Column(name = "name")
     private String name;
@@ -58,5 +56,13 @@ public class UserDataSet extends DataSet{
         result = 31 * result + getAge();
         result = 31 * result + Long.hashCode(getId());
         return result;
+    }
+
+    public UserDataSet(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+
+    public UserDataSet() {
     }
 }

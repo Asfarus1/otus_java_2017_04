@@ -14,7 +14,7 @@
     </properties>
 
     <build>
-        <finalName>hw08</finalName>
+        <finalName>hw09</finalName>
         <plugins>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
