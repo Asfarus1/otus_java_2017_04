@@ -1,11 +1,12 @@
-package ru.otus_matveev_anton.db.cache;
+package ru.otus_matveev_anton.db.my_cache;
+
+import java.util.Date;
 
 public class MyElement<K, V> {
     private final K key;
     private final V value;
     private final long creationTime;
-    private long lastAccessTime;
-
+    private volatile long lastAccessTime;
 
     public MyElement(K key, V value) {
         this.key = key;
@@ -14,7 +15,7 @@ public class MyElement<K, V> {
         this.lastAccessTime = getCurrentTime();
     }
 
-    protected long getCurrentTime() {
+    private long getCurrentTime() {
         return System.currentTimeMillis();
     }
 
@@ -36,5 +37,16 @@ public class MyElement<K, V> {
 
     public void setAccessed() {
         lastAccessTime = getCurrentTime();
+    }
+
+    @Override
+    public String toString() {
+        long ct = getCurrentTime();
+        return "MyElement{" +
+                "key=" + key +
+                ", value=" + value +
+                ", creation=" + (ct - creationTime)/1000 + " c." +
+                ", lastAccess=" + (ct - lastAccessTime)/1000  + "c." +
+                '}';
     }
 }

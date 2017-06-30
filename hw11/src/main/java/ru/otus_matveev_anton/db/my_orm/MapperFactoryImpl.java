@@ -62,10 +62,12 @@ public class MapperFactoryImpl implements MapperFactory{
         final StringBuilder insertB = new StringBuilder("INSERT INTO ").append(tableName).append("(");
 
         HandlerBuilder<T> handlerBuilder = (rs) -> {
-            T obj = clazz.newInstance();
-            rs.next();
-            obj.setId(rs.getLong("id"));
-            return obj;
+            if(rs.next()) {
+                T obj = clazz.newInstance();
+                obj.setId(rs.getLong("id"));
+                return obj;
+            }
+            return null;
         };
 
         ArgsSetterBuilder<T> argsSetterBuilder = (lst, obj) -> {};
@@ -139,7 +141,9 @@ public class MapperFactoryImpl implements MapperFactory{
             Objects.requireNonNull(after);
             return (rs) -> {
                 T res = handle(rs);
-                after.set(res, rs);
+                if (res != null) {
+                    after.set(res, rs);
+                }
                 return res;
             };
         }

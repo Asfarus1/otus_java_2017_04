@@ -4,6 +4,7 @@ import javax.persistence.Id;
 import java.lang.ref.SoftReference;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,12 +18,13 @@ public class MapperFactoryImpl implements MapperFactory{
     private final Map<Class<?>, SoftReference<Mapper>> mappers;
     private final MyOrmConfig myOrmConfig;
 
-    MapperFactoryImpl(MyOrmConfig myOrmConfig) {
+    public MapperFactoryImpl(MyOrmConfig myOrmConfig) {
         this.mappers = new ConcurrentHashMap<>();
         this.myOrmConfig = myOrmConfig;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T extends DataSet> Mapper<T> get(Class<T> clazz) {
         SoftReference<Mapper> ref = mappers.get(clazz);
         Mapper<T> mapper;
@@ -52,6 +54,7 @@ public class MapperFactoryImpl implements MapperFactory{
         executor.ExecuteUpdate(String.format(createPattern, tableName, createB.toString()));
     }
 
+    @SuppressWarnings("unchecked")
     private <T extends DataSet> Mapper<T> createMapper(Class<T> clazz) {
         String tableName = getTableName(clazz);
 
@@ -59,10 +62,12 @@ public class MapperFactoryImpl implements MapperFactory{
         final StringBuilder insertB = new StringBuilder("INSERT INTO ").append(tableName).append("(");
 
         HandlerBuilder<T> handlerBuilder = (rs) -> {
-            T obj = clazz.newInstance();
-            rs.next();
-            obj.setId(rs.getLong("id"));
-            return obj;
+            if(rs.next()) {
+                T obj = clazz.newInstance();
+                obj.setId(rs.getLong("id"));
+                return obj;
+            }
+            return null;
         };
 
         ArgsSetterBuilder<T> argsSetterBuilder = (lst, obj) -> {};
@@ -136,12 +141,14 @@ public class MapperFactoryImpl implements MapperFactory{
             Objects.requireNonNull(after);
             return (rs) -> {
                 T res = handle(rs);
-                after.set(res, rs);
+                if (res != null) {
+                    after.set(res, rs);
+                }
                 return res;
             };
         }
     }
-
+    @SuppressWarnings("unchecked")
     private interface ArgsSetterBuilder<T extends DataSet>{
         void aply(List lst, T obj) throws Exception;
 
