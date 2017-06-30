@@ -1,10 +1,13 @@
 package ru.otus_matveev_anton.db.my_cache;
 
+import javafx.util.Pair;
+
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
+import java.lang.ref.SoftReference;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
@@ -20,7 +23,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
     private volatile boolean isEternal;
     private int timeThresholdS = DEFAULT_THRESHOLD_TIME_S;
 
-    private final Map<K, MyElement<K, V>> elements = new ConcurrentHashMap<>();
+    private final Map<K, SoftReference<MyElement<K, V>>> elements = new ConcurrentHashMap<>();
     private Timer timer = new Timer();
     private ScheduledExecutorService cleaner = Executors.newScheduledThreadPool(1);
     private final String name;
@@ -29,19 +32,21 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
     private AtomicLong miss = new AtomicLong(0);
 
     private final Runnable taskForCacheCleanind = () -> {
-            final long fLifeTimeS = getLifeTimeS() * 1000;
-            final long fIdleTimeS = getIdleTimeS() * 1000;
+        final long fLifeTimeS = getLifeTimeS() * 1000;
+        final long fIdleTimeS = getIdleTimeS() * 1000;
 
-            if (!isEternal) {
-                if (fLifeTimeS > 0) {
-                    removeIf(e -> System.currentTimeMillis() > e.getCreationTime() + fLifeTimeS);
-                }
-                if (fIdleTimeS > 0) {
-                    removeIf(e -> System.currentTimeMillis() > e.getLastAccessTime() + fIdleTimeS);
-                }
+        Predicate<Map.Entry<K, MyElement<K, V>>> test = e -> e.getValue() == null;
+
+        if (!isEternal) {
+            if (fLifeTimeS > 0) {
+                test.and(e -> System.currentTimeMillis() > e.getValue().getCreationTime() + fLifeTimeS);
             }
+            if (fIdleTimeS > 0) {
+                removeIf(e -> System.currentTimeMillis() > e.getValue().getLastAccessTime() + fIdleTimeS);
+            }
+        }
 
-            prepareTimer();
+        prepareTimer();
     };
 
     private PrintStream log = System.out;
@@ -58,35 +63,35 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
             }
 
 
-        String propValue = props.getProperty("max_elements");
-        if (propValue != null) {
-            maxElements = Integer.valueOf(propValue);
-        }
+            String propValue = props.getProperty("max_elements");
+            if (propValue != null) {
+                maxElements = Integer.valueOf(propValue);
+            }
 
-        propValue = props.getProperty("life_time_seconds");
-        if (propValue != null) {
-            lifeTimeS = Integer.valueOf(propValue);
-        }
+            propValue = props.getProperty("life_time_seconds");
+            if (propValue != null) {
+                lifeTimeS = Integer.valueOf(propValue);
+            }
 
-        propValue = props.getProperty("idle_time_seconds");
-        if (propValue != null) {
-            idleTimeS = Integer.valueOf(propValue);
-        }
+            propValue = props.getProperty("idle_time_seconds");
+            if (propValue != null) {
+                idleTimeS = Integer.valueOf(propValue);
+            }
 
-        propValue = props.getProperty("time_threshold_seconds");
-        if (propValue != null) {
-            setTimeThresholdS(Integer.valueOf(propValue));
-        }
+            propValue = props.getProperty("time_threshold_seconds");
+            if (propValue != null) {
+                setTimeThresholdS(Integer.valueOf(propValue));
+            }
 
-        propValue = props.getProperty("is_eternal");
-        isEternal = propValue != null && Boolean.valueOf(propValue) || idleTimeS == 0 && lifeTimeS == 0;
+            propValue = props.getProperty("is_eternal");
+            isEternal = propValue != null && Boolean.valueOf(propValue) || idleTimeS == 0 && lifeTimeS == 0;
 
 
-        MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
-        ObjectName oName = new ObjectName("ru.otus_matveev_anton.db.my_cache:type=my_cache_" + name);
-        beanServer.registerMBean(this, oName);
+            MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
+            ObjectName oName = new ObjectName("ru.otus_matveev_anton.db.my_cache:type=my_cache_" + name);
+            beanServer.registerMBean(this, oName);
 
-        log.printf("create cache %s PID=%s%n", this, ManagementFactory.getRuntimeMXBean().getName());
+            log.printf("create cache %s PID=%s%n", this, ManagementFactory.getRuntimeMXBean().getName());
 
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
@@ -110,30 +115,43 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
         cleaner.schedule(taskForCacheCleanind, timeThresholdS > 1 ? timeThresholdS : DEFAULT_THRESHOLD_TIME_S, TimeUnit.SECONDS);
     }
 
-    private void removeIf(Predicate<MyElement<K,V>> test){
-        elements.values().stream().filter(test).forEach((e)->{
-            elements.remove(e.getKey());
-            log.printf("removed elem %s%n", e);
-        });
+    private void removeIf(Predicate<Pair<K, MyElement<K, V>>> test) {
+        elements.entrySet().stream()
+                .map(e -> new Pair<>(e.getKey(), e.getValue().get()))
+                .filter(test)
+                .forEach((e) -> {
+                            elements.remove(e.getKey());
+                            log.printf("removed elem %s%n", e);
+                        }
+                );
     }
 
     public void put(MyElement<K, V> element) {
 
         if (maxElements != 0 && elements.size() >= maxElements) {
-            MyElement<K, V> first = elements.values().parallelStream().sorted(Comparator.comparingLong(MyElement::getCreationTime)).findFirst().orElse(null);
-            if (first != null){
+            Pair<K, MyElement<K, V>> first = elements.entrySet().stream()
+                    .map(e -> new Pair<>(e.getKey(), e.getValue().get()))
+                    .sorted(Comparator.comparingLong(
+                            e -> {
+                                MyElement<K, V> el = e.getValue();
+                                return el == null ? 0 : el.getCreationTime();
+                            }
+                    )).findFirst().orElse(null);
+            if (first != null) {
                 elements.remove(first.getKey());
-                log.printf("removed elem %s%n", first);
+                log.printf("removed elem %s%n", first.getValue());
             }
         }
 
         K key = element.getKey();
-        elements.put(key, element);
+        elements.put(key, new SoftReference<>(element));
         log.printf("added elem %s%n", element);
     }
 
     public MyElement<K, V> get(K key) {
-        MyElement<K, V> element = elements.get(key);
+        SoftReference<MyElement<K, V>> ref = elements.get(key);
+        MyElement<K, V> element = ref == null ? null : ref.get();
+
         if (element != null) {
             hit.incrementAndGet();
             element.setAccessed();
@@ -156,7 +174,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
         cleaner.shutdown();
     }
 
-//Getters and setters
+    //Getters and setters
     public int getTimeThresholdMs() {
         return timeThresholdS;
     }
@@ -172,7 +190,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
 
     public void setMaxElements(int maxElements) {
         if (maxElements < 0) throw new IllegalArgumentException("max elements value can`t be less then 0");
-        if (maxElements < this.maxElements){
+        if (maxElements < this.maxElements) {
             elements.clear();
         }
         this.maxElements = maxElements;
