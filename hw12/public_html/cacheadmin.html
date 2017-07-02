@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ru.otus_matveev_anton.db.my_cache MBeanInfo</title>
+    <link href="style.css" type="text/css" rel="stylesheet">
+    <script src="jquery-3.2.1.js"></script>
+    <script src="script.js"></script>
+</head>
+<body>
+<form method="post" action="cacheadmin">
+    <table>
+        <caption>ru.otus_matveev_anton.db.my_cache MBeanInfo</caption>
+        <thead>
+            <tr><th>Name</th><th>Value</th></tr>
+            <tr class="info"><th>Info</th><th></th></tr>
+        </thead>
+        <tbody>
+            <tr><td><label for="TimeThresholdS">TimeThresholdS</label></td><td><input id = "TimeThresholdS" type="number" name="TimeThresholS"></td></tr>
+            <tr><td><label for="MaxElements">MaxElements</label></td><td><input id = "MaxElements" type="number" name="MaxElements"></td></tr>
+            <tr><td><label for="LifeTimeS">LifeTimeS</label></td><td><input id = "LifeTimeS"  type="number" name="LifeTimeS"></td></tr>
+            <tr><td><label for="IdleTimeS">IdleTimeS</label></td><td><input id = "IdleTimeS"  type="number" name="IdleTimeS"></td></tr>
+            <tr><td><label for="Eternal">Eternal</label></td><td><input id = "Eternal"  type="checkbox" name="Eternal"></td></tr>
+            <tr><td><label for="TimeThresholdMs">TimeThresholdMs</label></td><td><input id = "TimeThresholdMs"  type="number" name="TimeThresholdMs"></td></tr>
+
+            <tr><td><label for="HitCount">HitCount</label></td><td><input id = "HitCount"  readonly type="number" name="MissCount"></td></tr>
+            <tr><td><label for="MissCount">MissCount</label></td><td><input id = "MissCount" readonly type="number" name="MissCount"></td></tr>
+            <tr><td><label for="Size">Size</label></td><td><input id = "Size" type="number" readonly name="Size"></td></tr>
+        </tbody>
+    </table>
+    <input type="submit" value="confirm">
+   <a href="#">refresh</a>
+</form>
+<label ></label>
+</body>
+</html>

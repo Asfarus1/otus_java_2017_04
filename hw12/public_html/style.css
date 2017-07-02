@@ -1,0 +1,18 @@
+table, td, th{
+    border: solid gray 1px;
+    border-collapse: collapse;
+}
+
+td{
+    border-color: black;
+}
+
+input[readonly]{
+    background-color: rgba(0, 0, 0, 0.16);
+}
+
+.info{
+    background-color: yellow;
+    text-align: left;
+}
+
