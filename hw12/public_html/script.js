@@ -1,8 +1,10 @@
 
-function refresh()
+function refresh(readonlyfiels)
 {
     $.ajax({
-        url: "cacheData",
+
+        type: "POST",
+        url: "cacheData?action=" + (!!readonlyfiels ? 'getreadonly' : 'all'),
         cache: false,
         success: function(json){
             var elem;
@@ -17,7 +19,30 @@ function refresh()
         }
     });
 }
+
+function save()
+{
+    var json = {};
+    $('input:not([readonly])').each(
+        function () {
+            if (this.type === 'checkbox'){
+                json[this.id] = this.checked;
+            }else {
+                json[this.id] = this.value;
+            }
+        }
+    );
+    $.ajax({
+        type: "POST",
+        url: "cacheData?action=save",
+        cache: false,
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        data:JSON.stringify(json)
+    });
+}
+
 $(document).ready(function(){
-    refresh();
-    setInterval('refresh()',1000);
+    refresh(false);
+    setInterval('refresh(true)',1000);
 });

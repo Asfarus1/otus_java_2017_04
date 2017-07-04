@@ -26,7 +26,7 @@
                     <appendAssemblyId>false</appendAssemblyId>
                     <archive>
                         <manifest>
-                            <mainClass>ru.otus_matveev_anton.MainMyOrm</mainClass>
+                            <mainClass>ru.otus_matveev_anton.MainServlets</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
@@ -89,11 +89,11 @@
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/org.webjars/jquery -->
-        <dependency>
-            <groupId>org.webjars</groupId>
-            <artifactId>jquery</artifactId>
-            <version>2.1.4</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.webjars</groupId>-->
+            <!--<artifactId>jquery</artifactId>-->
+            <!--<version>2.1.4</version>-->
+        <!--</dependency>-->
 
     </dependencies>
 
