@@ -36,13 +36,13 @@ public class MainServlets {
 //        ResourceHandler resourceHandler = new ResourceHandler();
 //        resourceHandler.setResourceBase(PUBLIC_HTML);
 
-        ServletHolder holderPwd = new ServletHolder("default", DefaultServlet.class);
-        holderPwd.setInitParameter("resourceBase",PUBLIC_HTML);
+        ServletHolder resourceHolder = new ServletHolder("default", DefaultServlet.class);
+        resourceHolder.setInitParameter("resourceBase",PUBLIC_HTML);
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.addFilter(new FilterHolder(new AuthorizationFilter()), "/*", EnumSet.of(DispatcherType.REQUEST
                 , DispatcherType.ASYNC, DispatcherType.FORWARD, DispatcherType.INCLUDE, DispatcherType.ERROR));
-        context.addServlet(holderPwd , "/");
+        context.addServlet(resourceHolder , "/");
         context.addServlet(new ServletHolder(new AdminServlet()), "/cacheData");
         context.addServlet(new ServletHolder(new LoginServlet()), "/authorization");
 
