@@ -2,10 +2,16 @@ package ru.otus_matveev_anton;
 
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
+import org.eclipse.jetty.servlet.DefaultServlet;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
-import ru.otus_matveev_anton.servlets.AdminServlet;
+import ru.otus_matveev_anton.web.filters.AuthorizationFilter;
+import ru.otus_matveev_anton.web.servlets.AdminServlet;
+import ru.otus_matveev_anton.web.servlets.LoginServlet;
+
+import javax.servlet.DispatcherType;
+import java.util.EnumSet;
 
 public class MainServlets {
     private final static int PORT = 8080;
@@ -23,17 +29,28 @@ public class MainServlets {
         });
         cacheMain.setDaemon(true);
         cacheMain.start();
-        Thread.sleep(5000);
+        Thread.sleep(1000);
 
-        ResourceHandler resourceHandler = new ResourceHandler();
-        resourceHandler.setResourceBase(PUBLIC_HTML);
+
+//        не работает если добавлять фильтры
+//        ResourceHandler resourceHandler = new ResourceHandler();
+//        resourceHandler.setResourceBase(PUBLIC_HTML);
+
+        ServletHolder holderPwd = new ServletHolder("default", DefaultServlet.class);
+        holderPwd.setInitParameter("resourceBase",PUBLIC_HTML);
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
-        context.addServlet(new ServletHolder(new AdminServlet()),"/cacheData");
+        context.addFilter(new FilterHolder(new AuthorizationFilter()), "/*", EnumSet.of(DispatcherType.REQUEST
+                , DispatcherType.ASYNC, DispatcherType.FORWARD, DispatcherType.INCLUDE, DispatcherType.ERROR));
+        context.addServlet(holderPwd , "/");
+        context.addServlet(new ServletHolder(new AdminServlet()), "/cacheData");
+        context.addServlet(new ServletHolder(new LoginServlet()), "/authorization");
 
         Server server = new Server(PORT);
-        server.setHandler(new HandlerList(resourceHandler, context));
+        server.setHandler(new HandlerList(context));
+
         server.start();
         server.join();
     }
 }
+

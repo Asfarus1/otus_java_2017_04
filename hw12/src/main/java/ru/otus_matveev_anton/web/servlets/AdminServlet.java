@@ -1,4 +1,4 @@
-package ru.otus_matveev_anton.servlets;
+package ru.otus_matveev_anton.web.servlets;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -18,7 +18,7 @@ import java.util.function.Function;
 public class AdminServlet extends HttpServlet {
     private MBeanServer beanServer;
     private ObjectName cacheName;
-    private static final String CACHE_MBEAN_NAME = "ru.otus_matveev_anton.db.my_cache:type=my_cache_users";
+    private static final String CACHE_MBEAN_NAME = "ru.otus_matveev_anton.my_cache:type=my_cache_users";
     private final Map<String, Function<Object, Attribute>> attrMaker = new HashMap<>();
 
     private enum Action {

@@ -1,13 +1,14 @@
 package ru.otus_matveev_anton;
 
 import ru.otus_matveev_anton.db.DBService;
-import ru.otus_matveev_anton.db.DBServiceHibernateImpl;
 import ru.otus_matveev_anton.db.DBServiceHibernateXMLImpl;
 import ru.otus_matveev_anton.db.data_sets.AdressDataSet;
 import ru.otus_matveev_anton.db.data_sets.PhoneDataSet;
 import ru.otus_matveev_anton.db.data_sets.UserWithAdressAndPhonesDateSet;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 
 public class MainHibernateXML {
     public static void main(String[] args) {

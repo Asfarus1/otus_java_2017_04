@@ -1,56 +1,55 @@
-table{
+table {
     border-collapse: collapse;
     max-width: 400px;
     margin: auto;
     table-layout: fixed;
 }
 
-th, td{
+th, td {
     border: solid gray 1px;
     width: 100%;
 }
 
-td{
+td {
     border-color: black;
 }
 
-input[readonly]{
+input[readonly] {
     background-color: rgba(0, 0, 0, 0.16);
 }
 
-.info{
+.info {
     background-color: yellow;
     text-align: left;
 }
 
-.cell-for-btn{
-   text-align:right;
-   alignment: right;
-   border-style: none;
+.cell-for-btn {
+    text-align: right;
+    alignment: right;
+    border-style: none;
     padding: 5px 0;
 }
 
-.cell-for-btn span{
+.cell-for-btn span {
     text-decoration: none;
-    border:  solid gray 1px;
+    border: solid gray 1px;
     border-radius: 5px;
     font-size: 20px;
     cursor: pointer;
     padding: 3px;
 }
 
-.cell-for-btn img{
+.cell-for-btn img {
     width: 16px;
     height: 16px;
 }
 
-h1{
+h1 {
     text-align: center;
 }
 
-div{
+div {
     horiz-align: center;
-
 }
 
 

@@ -1,4 +1,4 @@
-package ru.otus_matveev_anton.db.my_cache;
+package ru.otus_matveev_anton.my_cache;
 
 
 public interface CacheEngine<K, V>{

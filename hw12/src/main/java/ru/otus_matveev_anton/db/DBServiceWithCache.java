@@ -1,9 +1,9 @@
 package ru.otus_matveev_anton.db;
 
 import ru.otus_matveev_anton.db.data_sets.UserDataSet;
-import ru.otus_matveev_anton.db.my_cache.CacheEngine;
-import ru.otus_matveev_anton.db.my_cache.CacheEngineImpl;
-import ru.otus_matveev_anton.db.my_cache.MyElement;
+import ru.otus_matveev_anton.my_cache.CacheEngine;
+import ru.otus_matveev_anton.my_cache.CacheEngineImpl;
+import ru.otus_matveev_anton.my_cache.MyElement;
 
 public class DBServiceWithCache implements DBService {
     private DBService service;

@@ -1,4 +1,4 @@
-package ru.otus_matveev_anton.db.my_cache;
+package ru.otus_matveev_anton.my_cache;
 
 import javafx.util.Pair;
 
@@ -8,8 +8,14 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.lang.management.ManagementFactory;
 import java.lang.ref.SoftReference;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Comparator;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Timer;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
@@ -88,7 +94,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
 
 
             MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
-            ObjectName oName = new ObjectName("ru.otus_matveev_anton.db.my_cache:type=my_cache_" + name);
+            ObjectName oName = new ObjectName("ru.otus_matveev_anton.my_cache:type=my_cache_" + name);
             beanServer.registerMBean(this, oName);
 
             log.printf("create cache %s PID=%s%n", this, ManagementFactory.getRuntimeMXBean().getName());
