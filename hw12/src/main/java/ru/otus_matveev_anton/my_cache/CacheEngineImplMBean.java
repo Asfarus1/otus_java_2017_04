@@ -22,11 +22,9 @@ public interface CacheEngineImplMBean {
 
     void setEternal(boolean eternal);
 
-
     long getHitCount();
 
     long getMissCount();
-
 
     int getSize();
 }

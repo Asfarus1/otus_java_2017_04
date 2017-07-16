@@ -14,9 +14,9 @@ import java.lang.management.ManagementFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 public class AdminServlet extends HttpServlet {
-    private MBeanServer beanServer;
     private ObjectName cacheName;
     private static final String CACHE_MBEAN_NAME = "ru.otus_matveev_anton.my_cache:type=my_cache_users";
     private final Map<String, Function<Object, Attribute>> attrMaker = new HashMap<>();
@@ -26,8 +26,7 @@ public class AdminServlet extends HttpServlet {
         GET_ALL,
         SAVE;
 
-        static Action getActionFromRequest(HttpServletRequest req) {
-            String action = req.getParameter("action");
+        static Action getActionFromRequest(String action) {
             if (action != null) {
                 switch (action) {
                     case "save":
@@ -43,34 +42,42 @@ public class AdminServlet extends HttpServlet {
     @Override
     public void init() throws ServletException {
         super.init();
-        beanServer = ManagementFactory.getPlatformMBeanServer();
         try {
             cacheName = new ObjectName(CACHE_MBEAN_NAME);
-            MBeanAttributeInfo[] attributes = beanServer.getMBeanInfo(cacheName).getAttributes();
-            String type;
-            Function<Object, Attribute> func;
-            for (MBeanAttributeInfo attribute : attributes) {
-                final String attrName = attribute.getName();
-                type = attribute.getType();
+        } catch (MalformedObjectNameException e) {
+            throw new ServletException(e);
+        }
+        MBeanAttributeInfo[] attributes = getCacheAttributes();
+        String type;
+        Function<Object, Attribute> func;
+        for (MBeanAttributeInfo attribute : attributes) {
+            final String attrName = attribute.getName();
+            type = attribute.getType();
 
-                if ("int".equalsIgnoreCase(type)) {
-                    func = v -> new Attribute(attrName, Integer.valueOf((String) v));
-                } else if ("long".equalsIgnoreCase(type)) {
-                    func = v -> new Attribute(attrName, Integer.valueOf((String)v));
-                } else {
-                    func = v -> new Attribute(attrName, v);
-                }
-                attrMaker.put(attrName, func);
+            if ("int".equalsIgnoreCase(type)) {
+                func = v -> new Attribute(attrName, Integer.valueOf((String) v));
+            } else if ("long".equalsIgnoreCase(type)) {
+                func = v -> new Attribute(attrName, Integer.valueOf((String) v));
+            } else {
+                func = v -> new Attribute(attrName, v);
             }
-        } catch (MalformedObjectNameException|ReflectionException|IntrospectionException|InstanceNotFoundException e) {
-            e.printStackTrace();
+            attrMaker.put(attrName, func);
+        }
+
+    }
+
+    private MBeanAttributeInfo[] getCacheAttributes() throws ServletException {
+        try {
+            return ManagementFactory.getPlatformMBeanServer().getMBeanInfo(cacheName).getAttributes();
+        } catch (InstanceNotFoundException|IntrospectionException|ReflectionException e) {
+            throw new ServletException(e);
         }
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 
-        Action action = Action.getActionFromRequest(req);
+        Action action = Action.getActionFromRequest(req.getParameter("action"));
         switch (action){
             case SAVE: setCacheParams(req, resp);
                 break;
@@ -80,43 +87,38 @@ public class AdminServlet extends HttpServlet {
     }
 
     @SuppressWarnings("unchecked")
-    private void addCacheJSON( HttpServletResponse resp, boolean readOnlyFields) throws IOException {
+    private void addCacheJSON( HttpServletResponse resp, boolean readOnlyFields) throws IOException, ServletException {
+        Stream<MBeanAttributeInfo> s = Stream.of(getCacheAttributes());
         JSONObject object = new JSONObject();
-
-        object.put("HitCount", getCacheAttribute("HitCount"));
-        object.put("MissCount", getCacheAttribute("MissCount"));
-        object.put("Size", getCacheAttribute("Size"));
-        if (!readOnlyFields){
-            object.put("IdleTimeS", getCacheAttribute("IdleTimeS"));
-            object.put("LifeTimeS", getCacheAttribute("LifeTimeS"));
-            object.put("MaxElements", getCacheAttribute("MaxElements"));
-            object.put("TimeThresholdS", getCacheAttribute("TimeThresholdS"));
-            object.put("Eternal", getCacheAttribute("Eternal"));
+        if (readOnlyFields) {
+            s = s.filter(a -> !a.isWritable());
         }
+        s.map(MBeanFeatureInfo::getName).forEach(n -> object.put(n, getAttr(n)));
+
         object.writeJSONString(resp.getWriter());
         resp.setContentType("application/json;charset=utf-8");
         resp.setStatus(HttpServletResponse.SC_OK);
     }
 
-    private void setCacheParams(HttpServletRequest req,  HttpServletResponse resp) throws IOException {
+    @SuppressWarnings("unchecked")
+    private void setCacheParams(HttpServletRequest req,  HttpServletResponse resp) throws ServletException{
         JSONParser parser = new JSONParser();
         try {
             JSONObject object = (JSONObject) parser.parse(req.getReader());
             object.forEach((k,v) -> setCacheAttribute((String) k, v));
             resp.setStatus(HttpServletResponse.SC_OK);
-        } catch (ParseException|IllegalArgumentException e) {
+        } catch (IOException|ParseException|IllegalArgumentException e) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            e.printStackTrace();
+            throw new ServletException(e);
         }
     }
 
-    private Object getCacheAttribute(String name){
+    private Object getAttr(String attrName){
         try {
-            return beanServer.getAttribute(cacheName, name);
+            return ManagementFactory.getPlatformMBeanServer().getAttribute(cacheName, attrName);
         } catch (MBeanException|AttributeNotFoundException|InstanceNotFoundException|ReflectionException e) {
-            e.printStackTrace();
+            throw new IllegalArgumentException(e);
         }
-        return null;
     }
 
     private void setCacheAttribute(String name, Object value){
@@ -125,7 +127,7 @@ public class AdminServlet extends HttpServlet {
             if (func == null){
                 throw new IllegalArgumentException("unknown attribute " + name);
             }
-            beanServer.setAttribute(cacheName, func.apply(value));
+            ManagementFactory.getPlatformMBeanServer().setAttribute(cacheName, func.apply(value));
         } catch (MBeanException|AttributeNotFoundException|InstanceNotFoundException|ReflectionException|InvalidAttributeValueException e) {
             throw new IllegalArgumentException(e);
         }
