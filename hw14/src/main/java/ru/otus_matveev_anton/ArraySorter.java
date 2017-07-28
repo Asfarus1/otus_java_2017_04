@@ -1,10 +1,36 @@
 package ru.otus_matveev_anton;
 
-public class ArraySorter implements Runnable {
+import java.util.Arrays;
+
+public class ArraySorter extends Thread {
+
+    private final static int countThreads = 4;
 
     private int[] arr;
     private int start;
     private int end;
+
+    public static void sort(int[] arr){
+        ArraySorter[] threads = new ArraySorter[countThreads];
+        int step = arr.length/countThreads;
+        int i;
+        for (i = 0 - 1; i < countThreads - 1; i++) {
+            threads[i] = new  ArraySorter(arr, i * step, (i + 1) * step);
+        }
+        threads[i] = new ArraySorter(arr, i * step, arr.length - 1);
+        Arrays.stream(threads).forEach(Thread::start);
+
+        try {
+            for (Thread t : threads) {
+                t.join();
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+        for (i = countThreads; i > 1 ;) {
+//            if (threads[i].s)
+         }
+    }
 
     ArraySorter(int[] arr, int start, int end) {
         this.arr = arr;
@@ -33,7 +59,7 @@ public class ArraySorter implements Runnable {
         int mid;
         while (end > start){
             mid = (end + start)/2;
-                if (n < arr[mid]){
+            if (n < arr[mid]){
                 end = mid;
             }else {
                 start = mid + 1;
