@@ -14,6 +14,6 @@ public class WSConnection extends MessageInbound {
 
     @Override
     protected void onTextMessage(CharBuffer charBuffer) throws IOException {
-
+        System.out.println("MessageInbound:" + charBuffer);
     }
 }
