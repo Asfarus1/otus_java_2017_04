@@ -2,13 +2,13 @@ package ru.otus_matveev_anton.message_system_client;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import ru.otus_matveev_anton.Message;
-import ru.otus_matveev_anton.MessageFormatException;
-import ru.otus_matveev_anton.MessageSystem;
-import ru.otus_matveev_anton.message_system.JsonMessage;
+import ru.otus_matveev_anton.genaral.*;
+import ru.otus_matveev_anton.json_message_system.JsonMessage;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Properties;
 import java.util.Queue;
@@ -19,20 +19,23 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class JsonSocketClient extends MessageSystemClient<String> {
 
     private final static Logger log = LogManager.getLogger(JsonSocketClient.class);
-    private final static String DEFAULT_CLIENT_ID_FILE_NAME = "/message_system_client.properties";
+    private final static String DEFAULT_CLIENT_ID_FILE_NAME = "message_system_client.properties";
     private static final int WORKERS_COUNT = 2;
+    private final String groupName;
+    private final String clientId;
 
-    private String clientId;
     private final Queue<String> out;
     private final Socket socket;
     private final ExecutorService executor;
 
     public JsonSocketClient(String... configFiles) throws ConnectException {
         Properties props = new Properties();
+
         String host;
-        int port;
+        Integer port;
 
         try {
+            log.info(Paths.get(DEFAULT_CLIENT_ID_FILE_NAME).toAbsolutePath());
             try (InputStream is = new FileInputStream(DEFAULT_CLIENT_ID_FILE_NAME)) {
                 props.load(is);
             }
@@ -41,16 +44,11 @@ public class JsonSocketClient extends MessageSystemClient<String> {
                     props.load(is);
                 }
             }
-
-            if (log.isInfoEnabled()) {
-                StringWriter writer = new StringWriter();
-                PrintWriter pw = new PrintWriter(writer);
-                props.forEach((k, v) -> pw.printf("%s=%s,", k, v));
-                log.info("properties from %1 : %2", Arrays.toString(configFiles), writer.getBuffer().toString());
-            }
+            log.info("properties from {} : {}", Arrays.toString(configFiles), props);
 
             host = props.getProperty("host");
             port = Integer.valueOf(props.getProperty("port"));
+            groupName = props.getProperty("groupName");
             clientId = props.getProperty("clientId");
 
             if (props.containsKey("queueCapacity")) {
@@ -60,18 +58,23 @@ public class JsonSocketClient extends MessageSystemClient<String> {
             }
 
         } catch (IOException | NumberFormatException e) {
-            log.error("Failure to setting from config files", e);
-                throw new IllegalArgumentException("Failure to load settings from config files. Files must contain properties: [host, port] and may contain [clientId, queueCapacity]", e);
+            String msg = "Failure to setting from config files";
+            log.error(msg, e);
+            throw new IllegalArgumentException(msg, e);
         }
+
+        if (host == null || port == null || groupName == null){
+            String msg = "Config files must contain properties: [host, port, groupName] and may contain [clientId, queueCapacity]";
+            log.error(msg);
+            throw new IllegalArgumentException(msg);
+        }
+
+        setAddressee(clientId == null
+                    ? new AddresseeImpl(SpecialAddress.GENERATE_NEW, groupName)
+                    : new AddresseeImpl(clientId, groupName));
 
         try {
             socket = new Socket(host, port);
-            if (clientId == null || clientId.isEmpty()) {
-                register();
-                saveClientId();
-            } else {
-                signIn(clientId);
-            }
         } catch (IOException | RuntimeException e) {
             log.error("Connection failure", e);
             close();
@@ -81,16 +84,29 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         executor = Executors.newFixedThreadPool(WORKERS_COUNT);
     }
 
-    public void init(){
-        executor.submit(this::receivingMessages);
+    public void init() throws IOException {
         executor.submit(this::sendingMessages);
+        try {
+            if (clientId == null || clientId.isEmpty()) {
+                register(null, groupName);
+                saveClientId();
+            } else {
+                register(clientId, groupName);
+            }
+        } catch (IOException | RuntimeException e) {
+            log.error("Registration failure", e);
+            close();
+            throw new ConnectException("Registration failure", e);
+        }
+        executor.submit(this::receivingMessages);
     }
 
     private void receivingMessages(){
-        String json = null;
+        String json;
         try (BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             while (socket.isConnected()) {
                 json = readTextFromStream(is);
+                log.debug("got msg:{}", json);
                 JsonMessage message =  new JsonMessage();
                 try {
                     message.loadFromPackagedData(json);
@@ -98,11 +114,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
                     log.error("Unpacking message error:" + json, e);
                     message = null;
                 }
-                for (MessageReceiveListener listener : listeners) {
-                    if (listener.onMessageReceive(message)){
-                        break;
-                    }
-                }
+               onMessageReceive(message);
             }
         } catch (IOException e) {
             log.error(e);
@@ -114,9 +126,12 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     private void sendingMessages(){
         try (PrintWriter os = new PrintWriter(socket.getOutputStream(), true)) {
             while (socket.isConnected()) {
-                String json = out.peek();
-                os.println(json);
-                os.println();
+                if (!out.isEmpty()) {
+                    String json = out.poll();
+                    os.println(json);
+                    os.println();
+                    log.debug("send msg:{}", json);
+                }
             }
         } catch (IOException e) {
             log.error(e);
@@ -126,22 +141,23 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     }
 
     @Override
-    public boolean sendMessage(Message<String> message) {
-       return out.offer(message.toPackagedData());
+    public boolean sendMessage(Addressee to, Object data) {
+        return out.offer(new JsonMessage(getAddressee(), to, data).toPackedData());
     }
 
     @Override
-    protected void register() throws IOException {
-        PrintStream outputStream;
-        outputStream = new PrintStream(socket.getOutputStream());
-        outputStream.println(MessageSystem.MESSAGE_GENERATE_NEW_ID);
-        outputStream.println();
-
+    protected void register(String clientId, String groupName) throws IOException {
+        sendMessage(getAddressee(), null);
         BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
-        clientId = readTextFromStream(in);
-        if (clientId.isEmpty()){
-            throw new IOException("Register failure, clientId from message server response is empty");
+        String json = readTextFromStream(in);
+        Message<String> message = new JsonMessage();
+        message.loadFromPackagedData(json);
+        Object data = message.getData();
+        if (data instanceof Throwable){
+            throw new IOException("Server error",(Throwable)data);
+        }else {
+            setAddressee(message.getTo());
+            log.info("client registered {}", getAddressee());
         }
     }
 
@@ -150,25 +166,12 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         try (InputStream is = new FileInputStream(DEFAULT_CLIENT_ID_FILE_NAME)) {
             props.load(is);
         }
-        props.put("clientId", clientId);
+        Address address = getAddressee().getAddress();
+        props.put("clientId", address.toString());
         try (OutputStream os = new FileOutputStream(DEFAULT_CLIENT_ID_FILE_NAME)) {
             props.store(os, null);
         }
-    }
-
-    @Override
-    protected void signIn(String clientId) throws IOException {
-        PrintStream outputStream;
-        outputStream = new PrintStream(socket.getOutputStream());
-        outputStream.println(clientId);
-        outputStream.println();
-
-        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-
-        String resp = readTextFromStream(in);
-        if (!MessageSystem.MESSAGE_SIGN_IN_SUCCESS.equals(resp)){
-            throw new IOException("Authorization failed with message server response: " + resp);
-        }
+        log.info("clientId {} save to file {}", address, DEFAULT_CLIENT_ID_FILE_NAME);
     }
 
     private String readTextFromStream(BufferedReader br) throws IOException {
@@ -185,8 +188,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     }
 
     public void close(){
-        shutdownRegistrations.forEach(Runnable::run);
-        shutdownRegistrations.clear();
+        super.close();
         if (socket != null && socket.isConnected()) {
             try {
                 socket.close();

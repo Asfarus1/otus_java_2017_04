@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ru.otus_matveev_anton.my_cache MBeanInfo</title>
+    <link href="css/style.css" type="text/css" rel="stylesheet">
+    <!--<script src="jquery-3.2.1.js"></script>-->
+    <!--<script src="//ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>-->
+    <script src="js/script.js"></script>
+</head>
+<body>
+    <form method="post" action="cacheadmin">
+        <h1>ru.otus_matveev_anton.my_cache MBeanInfo</h1>
+        <div>
+
+        <table>
+            <thead>
+                <!--<tr><th class="cell-for-btn" COLSPAN="2"><span onclick="ws.refresh(false)"><img src="images/refresh.jpg">refresh</span></th></tr>-->
+                <tr><th>Name</th><th>Value</th></tr><tr class="info"><th>Info</th><th></th></tr>
+            </thead>
+            <tbody>
+                    <tr><td><label for="TimeThresholdS">TimeThresholdS</label></td><td><input id = "TimeThresholdS" type="number" name="TimeThresholS" min="2"></td></tr>
+                    <tr><td><label for="MaxElements">MaxElements</label></td><td><input id = "MaxElements" type="number" name="MaxElements" min="0"></td></tr>
+                    <tr><td><label for="LifeTimeS">LifeTimeS</label></td><td><input id = "LifeTimeS"  type="number" name="LifeTimeS" min="0"></td></tr>
+                    <tr><td><label for="IdleTimeS">IdleTimeS</label></td><td><input id = "IdleTimeS"  type="number" name="IdleTimeS" min="0"></td></tr>
+                    <tr><td><label for="Eternal">Eternal</label></td><td><input id = "Eternal"  type="checkbox" name="Eternal" min="0"></td></tr>
+
+                    <tr><td><label for="HitCount">HitCount</label></td><td><input id = "HitCount"  readonly type="number" name="MissCount"></td></tr>
+                    <tr><td><label for="MissCount">MissCount</label></td><td><input id = "MissCount" readonly type="number" name="MissCount"></td></tr>
+                    <tr><td><label for="Size">Size</label></td><td><input id = "Size" type="number" readonly name="Size"></td></tr>
+                    <tr><td class="cell-for-btn" COLSPAN="2"><span onclick="ws.save()"><img src="images/save.jpg">save</span></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </form>
+</body>
+</html>
