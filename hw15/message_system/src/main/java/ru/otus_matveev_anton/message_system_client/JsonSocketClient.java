@@ -19,24 +19,24 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class JsonSocketClient extends MessageSystemClient<String> {
 
     private final static Logger log = LogManager.getLogger(JsonSocketClient.class);
-    private final static String DEFAULT_CLIENT_ID_FILE_NAME = "/message_system_client.properties";
+    private final static String DEFAULT_CLIENT_ID_FILE_NAME = "message_system_client.properties";
     private static final int WORKERS_COUNT = 2;
     private final String groupName;
+    private final String configClientIdFileName;
     private final String clientId;
 
     private final Queue<String> out;
     private final Socket socket;
     private final ExecutorService executor;
 
-    public JsonSocketClient(String... configFiles) throws ConnectException {
+    public JsonSocketClient(String configDir, String... configFiles) throws ConnectException {
         Properties props = new Properties();
-
+        configClientIdFileName = configDir +  DEFAULT_CLIENT_ID_FILE_NAME;
         String host;
         Integer port;
 
         try {
-            log.info(Paths.get(DEFAULT_CLIENT_ID_FILE_NAME).toAbsolutePath());
-            try (InputStream is = new FileInputStream(DEFAULT_CLIENT_ID_FILE_NAME)) {
+            try (InputStream is = new FileInputStream(configClientIdFileName)) {
                 props.load(is);
             }
             for (String file : configFiles) {
@@ -163,15 +163,15 @@ public class JsonSocketClient extends MessageSystemClient<String> {
 
     private void saveClientId() throws IOException {
         Properties props = new Properties();
-        try (InputStream is = new FileInputStream(DEFAULT_CLIENT_ID_FILE_NAME)) {
+        try (InputStream is = new FileInputStream(configClientIdFileName)) {
             props.load(is);
         }
         Address address = getAddressee().getAddress();
         props.put("clientId", address.toString());
-        try (OutputStream os = new FileOutputStream(DEFAULT_CLIENT_ID_FILE_NAME)) {
+        try (OutputStream os = new FileOutputStream(configClientIdFileName)) {
             props.store(os, null);
         }
-        log.info("clientId {} save to file {}", address, DEFAULT_CLIENT_ID_FILE_NAME);
+        log.info("clientId {} save to file {}", address, configClientIdFileName);
     }
 
     private String readTextFromStream(BufferedReader br) throws IOException {

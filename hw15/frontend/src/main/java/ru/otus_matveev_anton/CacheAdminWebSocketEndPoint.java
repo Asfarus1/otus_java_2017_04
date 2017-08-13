@@ -10,10 +10,12 @@ import ru.otus_matveev_anton.genaral.MessageSystemClient;
 import ru.otus_matveev_anton.genaral.SpecialAddress;
 import ru.otus_matveev_anton.message_system_client.JsonSocketClient;
 
+import javax.annotation.Resource;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
+import javax.xml.ws.WebServiceContext;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,6 +26,9 @@ public class CacheAdminWebSocketEndPoint extends HttpServlet{
     private final Set<Session> sessions = ConcurrentHashMap.newKeySet();
     private  MessageSystemClient<String> messageClient;// = new JsonSocketClient();
     private Addressee addresseeDB;
+
+    @Resource
+    private WebServiceContext context;
 //    = new AddresseeImpl(SpecialAddress.ANYONE, "DBServce");
 //    {
 //        messageClient.addMessageReceiveListener(

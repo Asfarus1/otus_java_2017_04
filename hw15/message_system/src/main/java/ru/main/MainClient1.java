@@ -11,7 +11,7 @@ import java.io.IOException;
  */
 public class MainClient1 {
     public static void main(String[] args) throws IOException, InterruptedException {
-        MessageSystemClient client = new JsonSocketClient("message_system_client1.properties");
+        MessageSystemClient client = new JsonSocketClient("/","message_system_client1.properties");
         client.init();
         client.addMessageReceiveListener(m->{System.out.println(m);return true;});
         AddresseeImpl all = new AddresseeImpl("1", "testGroup");
