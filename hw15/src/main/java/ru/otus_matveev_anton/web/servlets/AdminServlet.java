@@ -3,7 +3,6 @@ package ru.otus_matveev_anton.web.servlets;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.springframework.context.ApplicationContext;
 import org.springframework.web.context.ContextLoader;
 import org.springframework.web.context.WebApplicationContext;
 import ru.otus_matveev_anton.MainMyOrmWithCache;

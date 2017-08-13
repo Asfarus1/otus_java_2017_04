@@ -2,7 +2,6 @@ package ru.otus_matveev_anton.db;
 
 import ru.otus_matveev_anton.db.data_sets.UserDataSet;
 import ru.otus_matveev_anton.db.my_orm.MapperFactory;
-import ru.otus_matveev_anton.db.my_orm.MyOrmConfig;
 
 public class DBServiceMyOrmImpl implements DBService{
     private final MapperFactory factory;

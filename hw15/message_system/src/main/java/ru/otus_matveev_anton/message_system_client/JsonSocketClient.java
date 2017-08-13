@@ -19,7 +19,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class JsonSocketClient extends MessageSystemClient<String> {
 
     private final static Logger log = LogManager.getLogger(JsonSocketClient.class);
-    private final static String DEFAULT_CLIENT_ID_FILE_NAME = "message_system_client.properties";
+    private final static String DEFAULT_CLIENT_ID_FILE_NAME = "/message_system_client.properties";
     private static final int WORKERS_COUNT = 2;
     private final String groupName;
     private final String clientId;

@@ -10,41 +10,71 @@ import ru.otus_matveev_anton.genaral.MessageSystemClient;
 import ru.otus_matveev_anton.genaral.SpecialAddress;
 import ru.otus_matveev_anton.message_system_client.JsonSocketClient;
 
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-@ServerEndpoint("/cacheAdmin")
-public class CacheAdminWebSocketEndPoint {
+@ServerEndpoint(value = "/cacheAdmin", configurator = FrontendServerEndpointConfigurator.class)
+public class CacheAdminWebSocketEndPoint extends HttpServlet{
     private final static Logger log = LogManager.getLogger(CacheAdminWebSocketEndPoint.class);
     private final Set<Session> sessions = ConcurrentHashMap.newKeySet();
-    private final MessageSystemClient<String> messageClient = new JsonSocketClient();
-    private Addressee addresseeDB = new AddresseeImpl(SpecialAddress.ANYONE, "DBServce");
-    {
-        messageClient.addMessageReceiveListener(
-                (m)->{
-                    String msg = new Gson().toJson(m.getData());
-                    for (Session session : sessions) {
-                        log.debug("Send to session {} {}", session, m);
-                        session.getAsyncRemote().sendText(msg);
+    private  MessageSystemClient<String> messageClient;// = new JsonSocketClient();
+    private Addressee addresseeDB;
+//    = new AddresseeImpl(SpecialAddress.ANYONE, "DBServce");
+//    {
+//        messageClient.addMessageReceiveListener(
+//                (m)->{
+//                    String msg = new Gson().toJson(m.getData());
+//                    for (Session session : sessions) {
+//                        log.debug("Send to session {} {}", session, m);
+//                        session.getAsyncRemote().sendText(msg);
+//                    }
+//                    return false;
+//                }
+//        );
+//        try {
+//            messageClient.init();
+//        } catch (IOException e) {
+//            log.error(e);
+//            throw new RuntimeException(e);
+//        }
+//    }
+
+    @Override
+    public void init() throws ServletException {
+        super.init();
+        String realPath = getServletContext().getRealPath("message_system_client.properties");
+        System.out.println(realPath);
+        messageClient = new JsonSocketClient(realPath);
+        addresseeDB    = new AddresseeImpl(SpecialAddress.ANYONE, "DBServce");
+
+            messageClient.addMessageReceiveListener(
+                    (m)->{
+                        String msg = new Gson().toJson(m.getData());
+                        for (Session session : sessions) {
+                            log.debug("Send to session {} {}", session, m);
+                            session.getAsyncRemote().sendText(msg);
+                        }
+                        return false;
                     }
-                    return false;
-                }
-        );
-        try {
-            messageClient.init();
-        } catch (IOException e) {
-            log.error(e);
-            throw new RuntimeException(e);
-        }
+            );
+            try {
+                messageClient.init();
+            } catch (IOException e) {
+                log.error(e);
+                throw new RuntimeException(e);
+            }
     }
 
     @OnOpen
     public void onOpen(Session session, EndpointConfig config){
         log.info("Open session {} with user properties {}", session, config.getUserProperties());
         sessions.add(session);
+//        get
     }
 
     @OnClose
