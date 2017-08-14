@@ -5,18 +5,11 @@ import com.google.gson.JsonSyntaxException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.otus_matveev_anton.genaral.Addressee;
-import ru.otus_matveev_anton.genaral.AddresseeImpl;
 import ru.otus_matveev_anton.genaral.MessageSystemClient;
-import ru.otus_matveev_anton.genaral.SpecialAddress;
-import ru.otus_matveev_anton.message_system_client.JsonSocketClient;
 
-import javax.annotation.Resource;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
-import javax.xml.ws.WebServiceContext;
-import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -24,62 +17,30 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CacheAdminWebSocketEndPoint extends HttpServlet{
     private final static Logger log = LogManager.getLogger(CacheAdminWebSocketEndPoint.class);
     private final Set<Session> sessions = ConcurrentHashMap.newKeySet();
-    private  MessageSystemClient<String> messageClient;// = new JsonSocketClient();
+    private  MessageSystemClient<String> messageClient;
     private Addressee addresseeDB;
 
-    @Resource
-    private WebServiceContext context;
-//    = new AddresseeImpl(SpecialAddress.ANYONE, "DBServce");
-//    {
-//        messageClient.addMessageReceiveListener(
-//                (m)->{
-//                    String msg = new Gson().toJson(m.getData());
-//                    for (Session session : sessions) {
-//                        log.debug("Send to session {} {}", session, m);
-//                        session.getAsyncRemote().sendText(msg);
-//                    }
-//                    return false;
-//                }
-//        );
-//        try {
-//            messageClient.init();
-//        } catch (IOException e) {
-//            log.error(e);
-//            throw new RuntimeException(e);
-//        }
-//    }
+    public CacheAdminWebSocketEndPoint(MessageSystemClient<String> messageClient, Addressee addresseeDB) {
+        this.messageClient = messageClient;
+        this.addresseeDB = addresseeDB;
 
-    @Override
-    public void init() throws ServletException {
-        super.init();
-        String realPath = getServletContext().getRealPath("message_system_client.properties");
-        System.out.println(realPath);
-        messageClient = new JsonSocketClient(realPath);
-        addresseeDB    = new AddresseeImpl(SpecialAddress.ANYONE, "DBServce");
-
-            messageClient.addMessageReceiveListener(
-                    (m)->{
-                        String msg = new Gson().toJson(m.getData());
-                        for (Session session : sessions) {
-                            log.debug("Send to session {} {}", session, m);
-                            session.getAsyncRemote().sendText(msg);
-                        }
-                        return false;
+        messageClient.addMessageReceiveListener(
+                (m)->{
+                    String msg = new Gson().toJson(m.getData());
+                    for (Session session : sessions) {
+                        log.debug("Send to session {} {}", session, m);
+                        session.getAsyncRemote().sendText(msg);
                     }
-            );
-            try {
-                messageClient.init();
-            } catch (IOException e) {
-                log.error(e);
-                throw new RuntimeException(e);
-            }
+                    return false;
+                }
+        );
+
     }
 
     @OnOpen
     public void onOpen(Session session, EndpointConfig config){
         log.info("Open session {} with user properties {}", session, config.getUserProperties());
         sessions.add(session);
-//        get
     }
 
     @OnClose

@@ -21,7 +21,7 @@ public abstract class MessageSystemClient<T> implements Closeable{
 
     abstract public boolean sendMessage(Addressee to, Object data);
 
-    abstract protected void register(String clientId, String groupName) throws IOException;
+//    abstract protected void register() throws IOException;
 
     abstract public void init() throws IOException;
 

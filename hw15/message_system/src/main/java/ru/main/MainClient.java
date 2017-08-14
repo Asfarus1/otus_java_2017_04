@@ -12,7 +12,7 @@ import java.io.IOException;
  */
 public class MainClient {
     public static void main(String[] args) throws IOException, InterruptedException {
-        MessageSystemClient client = new JsonSocketClient("/");
+        MessageSystemClient client = JsonSocketClient.newInstance();
         client.init();
         client.addMessageReceiveListener(m->{System.out.println(m);return true;});
         AddresseeImpl all = new AddresseeImpl(SpecialAddress.ALL.name(), "testGroup");
