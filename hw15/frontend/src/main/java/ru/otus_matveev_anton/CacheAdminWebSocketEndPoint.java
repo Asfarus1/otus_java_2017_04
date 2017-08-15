@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.otus_matveev_anton.genaral.Addressee;
 import ru.otus_matveev_anton.genaral.MessageSystemClient;
+import ru.otus_matveev_anton.messages.CachePropsDataSet;
 
 import javax.servlet.http.HttpServlet;
 import javax.websocket.*;

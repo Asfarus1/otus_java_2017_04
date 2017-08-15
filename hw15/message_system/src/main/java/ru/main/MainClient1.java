@@ -6,12 +6,9 @@ import ru.otus_matveev_anton.message_system_client.JsonSocketClient;
 
 import java.io.IOException;
 
-/**
- * Created by asfarus on 10.08.2017.
- */
 public class MainClient1 {
     public static void main(String[] args) throws IOException, InterruptedException {
-        MessageSystemClient client = JsonSocketClient.fromConfigFiles("message_system_client1.properties");
+        MessageSystemClient client = JsonSocketClient.fromConfigFiles("/message_system_client1.properties");
         client.init();
         client.addMessageReceiveListener(m->{System.out.println(m);return true;});
         AddresseeImpl all = new AddresseeImpl("1", "testGroup");

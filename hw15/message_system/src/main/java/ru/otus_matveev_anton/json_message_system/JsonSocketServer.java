@@ -18,11 +18,11 @@ public class JsonSocketServer implements MessageSystem {
     private final static Logger log = LogManager.getLogger(JsonSocketServer.class);
     private static final int BYTE_BUFFER_CAPACITY = 512;
     private static final int WORKERS_COUNT = 5;
-    public static final String MESSAGE_SEPARATOR = "\n\n";
+    private static final String MESSAGE_SEPARATOR = "\n\n";
     private final int port;
     private final Map<Address, Queue<String>> messages = new ConcurrentHashMap<>();
     private final Map<String, Set<Address>> groupAddresses = new ConcurrentHashMap<>();
-    private final Map<Channel, Address> addressChannels = new ConcurrentHashMap<>();
+    private final Map<Address, SocketChannel> addressChannels = new ConcurrentHashMap<>();
     private final ExecutorService executor = Executors.newFixedThreadPool(WORKERS_COUNT);
 
     public JsonSocketServer(int port) {
@@ -44,21 +44,18 @@ public class JsonSocketServer implements MessageSystem {
 
             ByteBuffer buffer = ByteBuffer.allocate(BYTE_BUFFER_CAPACITY);
             int read;
-            boolean isProcessed;
             while (true) {
                 selector.select();
 
                 Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
                 while (iterator.hasNext()) {
                     SelectionKey key = iterator.next();
-                    isProcessed = false;
                     try {
                         if (key.isAcceptable()) {
                             SocketChannel channel = serverSocketChannel.accept(); //non blocking accept
                             log.info("Accepted connection from {}", channel.getRemoteAddress());
                             channel.configureBlocking(false);
                             channel.register(selector, SelectionKey.OP_READ);
-                            isProcessed = true;
                         }
 
                         if (key.isReadable()) {
@@ -87,69 +84,17 @@ public class JsonSocketServer implements MessageSystem {
                                     if (isFirstRead) {
                                         channelReader.registerChannel(selector);
                                     }
-                                    if (!channelReader.isActive) {
-                                        executor.submit(channelReader::receivingMessages);
-                                    }
+                                    executor.submit(channelReader::receivingMessages);
                                 }
                                 key.interestOps(SelectionKey.OP_WRITE);
                             }
                         }
-//                        if (key.isConnectable()){
-//                            SocketChannel channel = (SocketChannel) key.channel();
-//                            log.info("connect with {}", channel.getRemoteAddress());
-//                            boolean success = false;
-//                            try {
-//                                success = channel.finishConnect();
-//                            } catch (IOException e) {
-//                                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-//                            }
-//                            if (!success) {
-//                                // An error occurred; handle it
-//
-//                                // Unregister the channel with this selector
-//                                key.cancel();
-//                            }
-//                            int ops = key.interestOps();
-//
-//                            if((ops & SelectionKey.OP_WRITE) != 0)
-//                            {
-//                                key.interestOps(SelectionKey.OP_WRITE);
-//                            }
-//                            else
-//                            {
-//                                key.interestOps(SelectionKey.OP_READ);
-//                            }
-//                        }
-
-                        if (key.isWritable()) {
-                            SocketChannel channel = (SocketChannel) key.channel();
-                            Address address = addressChannels.get(channel);
-                            if (address != null) {
-                                Queue<String> queue = messages.get(address);
-                                if (queue != null) {
-                                    while (!queue.isEmpty()) {
-                                        log.debug("send to address {} message {}", address, queue.peek());
-                                        buffer.put(queue.poll().getBytes());
-                                        buffer.put(MESSAGE_SEPARATOR.getBytes());
-                                        buffer.flip();
-                                        channel.write(buffer);
-                                        if (buffer.hasRemaining()){
-                                            buffer.compact();
-                                        }else {
-                                            buffer.clear();
-                                        }
-                                    }
-                                }
-                            }
-                            key.interestOps(SelectionKey.OP_READ);
-                        }
                     } catch (IOException e) {
                         log.error(e);
                         newChannels.remove(key.channel());
-                        addressChannels.remove(key.channel());
+                        addressChannels.r(key.channel());
                         key.cancel();
                     } finally {
-                        if (isProcessed)
                             iterator.remove();
                     }
                 }
@@ -157,12 +102,38 @@ public class JsonSocketServer implements MessageSystem {
         }
     }
 
+    @SuppressWarnings("InfiniteLoopStatement")
+    private void sendMessage(){
+        ByteBuffer buffer = ByteBuffer.allocate(BYTE_BUFFER_CAPACITY);
+        messages.forEach((a,q)->{
+            if (q != null && !q.isEmpty()) {
+                SocketChannel channel = addressChannels.get(a);
+//                if (a.)
+                while (!q.isEmpty()) {
+                    log.debug("send to address {} message {}", a, q.peek());
+                    buffer.put(q.poll().getBytes());
+                    buffer.put(MESSAGE_SEPARATOR.getBytes());
+                    buffer.flip();
+                    while (buffer.hasRemaining()) {
+                        try {
+                            channel.write(buffer);
+                        } catch (IOException e) {
+                            log.error(e);
+
+                        }
+                    }
+                    buffer.clear();
+
+                }
+            }
+        });
+    }
+
     private class ChannelReader implements AutoCloseable {
         final PipedInputStream in;
         final PipedOutputStream out;
         final BufferedReader br;
         final SocketChannel channel;
-        volatile boolean isActive = false;
 
         ChannelReader(SocketChannel channel) throws IOException {
             this.out = new PipedOutputStream();
@@ -212,7 +183,7 @@ public class JsonSocketServer implements MessageSystem {
             } else if (addressChannels.containsValue(address)) {
                 log.info("For {} with groupName {} address {} already taken", channel.getRemoteAddress(), groupName, address);
                 String msg = new JsonMessage(addressee, addressee, "Address " + address.toString() + " already taken").toPackedData();
-                channel.write(ByteBuffer.wrap(msg.concat("\n\n").getBytes()));
+                channel.write(ByteBuffer.wrap(msg.concat(MESSAGE_SEPARATOR).getBytes()));
                 throw new IOException(msg);
             } else {
                 log.info("For {} with groupName {} set address {}", channel.getRemoteAddress(), groupName, address);
@@ -234,7 +205,6 @@ public class JsonSocketServer implements MessageSystem {
 
         private void receivingMessages() {
             try {
-                isActive = true;
                 while (hasMessage()) {
                     String json = readTextMessage();
                     JsonMessage message = new JsonMessage();
@@ -262,8 +232,6 @@ public class JsonSocketServer implements MessageSystem {
                 }
             } catch (IOException e) {
                 log.error(e);
-            } finally {
-                isActive = false;
             }
         }
     }

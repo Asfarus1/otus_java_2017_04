@@ -7,9 +7,6 @@ import ru.otus_matveev_anton.message_system_client.JsonSocketClient;
 
 import java.io.IOException;
 
-/**
- * Created by asfarus on 10.08.2017.
- */
 public class MainClient {
     public static void main(String[] args) throws IOException, InterruptedException {
         MessageSystemClient client = JsonSocketClient.newInstance();
