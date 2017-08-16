@@ -1,14 +1,17 @@
 package ru.otus_matveev_anton.db.my_orm;
 
-import java.io.PrintStream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.sql.*;
 import java.util.Arrays;
 
-public class Executor {
+class Executor {
+    private final static Logger log = LogManager.getLogger(Executor.class);
     private final MyOrmConfig myOrmConfig;
     private final Connection connection;
 
-    public Executor(MyOrmConfig myOrmConfig) {
+    Executor(MyOrmConfig myOrmConfig) {
         this.myOrmConfig = myOrmConfig;
         this.connection = myOrmConfig.getConnection();
     }
@@ -70,15 +73,14 @@ public class Executor {
     }
 
     private void printQuery(String query, Object... args){
-        if (myOrmConfig.isShowSql()){
-            PrintStream log = myOrmConfig.getLog();
-            log.println("sql:" + query);
+        if (myOrmConfig.isShowSql() && log.isDebugEnabled()){
+            StringBuilder sb = new StringBuilder();
+            sb.append("sql:").append(query);
             if (args.length > 0){
-                log.print("args:");
-                Arrays.stream(args).forEach((a)->log.printf("%s;",a));
-                log.println();
+                sb.append("args:");
+                Arrays.stream(args).forEach((a)->sb.append(a).append(';'));
             }
-            log.println("---");
+            log.debug(sb);
         }
     }
 }

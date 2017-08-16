@@ -1,8 +1,10 @@
 package ru.otus_matveev_anton.db.my_orm;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -18,7 +20,7 @@ public class MyOrmConfig {
 
     private MapperFactory factory;
 
-    private PrintStream log;
+    private final static Logger log = LogManager.getLogger(MyOrmConfig.class);
 
     public MyOrmConfig(String... configFiles) throws DBException {
         Properties props = new Properties();
@@ -39,11 +41,11 @@ public class MyOrmConfig {
             }
             showSql = "true".equalsIgnoreCase(props.getProperty("showSql"));
         }catch (IOException|SQLException|ClassNotFoundException e){
+            log.error(e);
             throw new DBException(e);
         }
 
         this.factory = new MapperFactoryImpl(this);
-        this.log = System.out;
     }
 
     public MapperFactory getFactory() {
@@ -52,10 +54,6 @@ public class MyOrmConfig {
 
     Connection getConnection() {
         return connection;
-    }
-
-    PrintStream getLog() {
-        return log;
     }
 
     boolean isShowSql() {

@@ -39,4 +39,8 @@ public class DBServiceWithCache implements DBService {
             cache.dispose();
         }
     }
+
+    public CacheEngine<Long, UserDataSet> getCache() {
+        return cache;
+    }
 }

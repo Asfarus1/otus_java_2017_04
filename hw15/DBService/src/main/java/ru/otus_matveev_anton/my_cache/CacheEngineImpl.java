@@ -16,16 +16,18 @@ import java.util.function.Predicate;
 
 public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImplMBean {
 
+    private static final int CHANGE_STATS_MONITORING_DELAY = 300;
     private final int DEFAULT_THRESHOLD_TIME_S = 10;
 
     private int maxElements;
     private long lifeTimeS;
     private long idleTimeS;
     private volatile boolean isEternal;
+    private volatile boolean isChanged;
     private int timeThresholdS = DEFAULT_THRESHOLD_TIME_S;
 
     private final Map<K, SoftReference<MyElement<K, V>>> elements = new ConcurrentHashMap<>();
-    private final ScheduledExecutorService cleaner = Executors.newScheduledThreadPool(1);
+    private final ScheduledExecutorService cleaner = Executors.newScheduledThreadPool(2);
     private final String name;
 
     private final AtomicLong hit = new AtomicLong(0);
@@ -49,6 +51,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
         }
 
         prepareTimer();
+        onChange();
     };
 
     private final static Logger log = LogManager.getLogger(CacheEngineImpl.class);
@@ -87,7 +90,6 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
             propValue = props.getProperty("is_eternal");
             isEternal = propValue != null && Boolean.valueOf(propValue) || idleTimeS == 0 && lifeTimeS == 0;
 
-
             MBeanServer beanServer = ManagementFactory.getPlatformMBeanServer();
             ObjectName oName = new ObjectName("ru.otus_matveev_anton.my_cache:type=my_cache_" + name);
             beanServer.registerMBean(this, oName);
@@ -98,7 +100,8 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
             throw new IllegalArgumentException(e);
         }
         prepareTimer();
-        onChange();
+        isChanged = true;
+        cleaner.schedule(this::onChange, CHANGE_STATS_MONITORING_DELAY, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -111,11 +114,17 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
         return changedListeners.remove(listener);
     }
 
+    @SuppressWarnings("InfiniteLoopStatement")
     private void onChange(){
-        for (CacheStatsChangedListener listener : changedListeners) {
-            listener.onChange(this);
-        }
+            if (isChanged){
+                isChanged = false;
+                for (CacheStatsChangedListener listener : changedListeners) {
+                    listener.onChange(this);
+                }
+            }
+        cleaner.schedule(this::onChange, CHANGE_STATS_MONITORING_DELAY, TimeUnit.MILLISECONDS);
     }
+
     @Override
     public String toString() {
         return "CacheEngineImpl{" +
@@ -139,9 +148,9 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
                 .forEach((e) -> {
                             elements.remove(e.getKey());
                             log.debug("removed elem %s%n", e);
+                            isChanged = true;
                         }
                 );
-        onChange();
     }
 
     public void put(MyElement<K, V> element) {
@@ -164,7 +173,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
         K key = element.getKey();
         elements.put(key, new SoftReference<>(element));
         log.debug("added elem %s%n", element);
-        onChange();
+        isChanged = true;
     }
 
     public MyElement<K, V> get(K key) {
@@ -177,7 +186,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
         } else {
             miss.incrementAndGet();
         }
-        onChange();
+        isChanged = true;
         return element;
     }
 
@@ -198,7 +207,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
     public void setTimeThresholdS(int timeThresholdS) {
         if (timeThresholdS < 2) throw new IllegalArgumentException("time threshold value can`t be less then 2");
         this.timeThresholdS = timeThresholdS;
-        onChange();
+        isChanged = true;
     }
 
     public int getMaxElements() {
@@ -210,7 +219,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
         if (maxElements < this.maxElements) {
             elements.clear();
         }
-        onChange();
+        isChanged = true;
         this.maxElements = maxElements;
     }
 
@@ -221,7 +230,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
     public void setLifeTimeS(long lifeTimeS) {
         if (maxElements < 0) throw new IllegalArgumentException("life time value can`t be less then 0");
         this.lifeTimeS = lifeTimeS;
-        onChange();
+        isChanged = true;
     }
 
     public long getIdleTimeS() {
@@ -231,7 +240,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
     public void setIdleTimeS(long idleTimeS) {
         if (idleTimeS < 0) throw new IllegalArgumentException("idle time value can`t be less then 0");
         this.idleTimeS = idleTimeS;
-        onChange();
+        isChanged = true;
     }
 
     public boolean isEternal() {
@@ -240,7 +249,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
 
     public void setEternal(boolean eternal) {
         isEternal = eternal;
-        onChange();
+        isChanged = true;
     }
 
     public int getTimeThresholdS() {
