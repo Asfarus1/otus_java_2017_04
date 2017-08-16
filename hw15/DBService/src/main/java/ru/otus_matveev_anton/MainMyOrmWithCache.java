@@ -58,7 +58,7 @@ public class MainMyOrmWithCache {
                 dbService.saveUser(user);
                 Thread.sleep(rnd.nextInt(2_000));
                 user = dbService.getUser(rnd.nextInt(seq.intValue() * 3));
-                System.out.println("got user " + user);
+                log.debug("got user " + user);
                 Thread.sleep(rnd.nextInt(2_000));
             }
         }finally {

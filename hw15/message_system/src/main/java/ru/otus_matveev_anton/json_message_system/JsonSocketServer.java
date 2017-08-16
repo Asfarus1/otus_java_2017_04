@@ -243,7 +243,7 @@ public class JsonSocketServer implements MessageSystem {
                     try {
                         message.loadFromPackagedData(json);
                     } catch (MessageFormatException e) {
-                        log.error("{} - unpacking message {} error: {}", channel.getRemoteAddress(), json, e.getMessage());
+                        log.error("{} - unpacking message error: {}", channel.getRemoteAddress(), e.getMessage());
                         continue;
                     }
 
@@ -253,7 +253,7 @@ public class JsonSocketServer implements MessageSystem {
                         messages.get(address).offer(json);
                     } else {
                         Set<Address> addresses = groupAddresses.get(addressee.getGroupName());
-                        if (addresses.size() > 0) {
+                        if (addresses!= null && addresses.size() > 0) {
                             if (SpecialAddress.ALL.equals(address)) {
                                 addresses.forEach(a -> messages.get(a).offer(json));
                             } else if (SpecialAddress.ANYONE.equals(address)) {

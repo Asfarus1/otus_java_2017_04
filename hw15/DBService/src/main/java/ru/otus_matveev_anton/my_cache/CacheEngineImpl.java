@@ -94,7 +94,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
             ObjectName oName = new ObjectName("ru.otus_matveev_anton.my_cache:type=my_cache_" + name);
             beanServer.registerMBean(this, oName);
 
-            log.info("create cache %s PID=%s%n", this, ManagementFactory.getRuntimeMXBean().getName());
+            log.info("create cache {} PID={}", this, ManagementFactory.getRuntimeMXBean().getName());
 
         } catch (Exception e) {
             throw new IllegalArgumentException(e);
@@ -147,7 +147,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
                 .filter(test)
                 .forEach((e) -> {
                             elements.remove(e.getKey());
-                            log.debug("removed elem %s%n", e);
+                            log.debug("removed elem {}", e);
                             isChanged = true;
                         }
                 );
@@ -166,13 +166,13 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
                     )).findFirst().orElse(null);
             if (first != null) {
                 elements.remove(first.getKey());
-                log.debug("removed elem %s%n", first.getValue());
+                log.debug("removed elem {}", first.getValue());
             }
         }
 
         K key = element.getKey();
         elements.put(key, new SoftReference<>(element));
-        log.debug("added elem %s%n", element);
+        log.debug("added elem {}", element);
         isChanged = true;
     }
 
