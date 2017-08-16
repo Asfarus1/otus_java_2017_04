@@ -3,6 +3,7 @@ package ru.otus_matveev_anton.json_message_system;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.otus_matveev_anton.genaral.*;
+import ru.otus_matveev_anton.messages.CacheStatsDataSet;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -110,7 +111,7 @@ public class JsonSocketServer implements MessageSystem {
     private void sendMessage() {
         ByteBuffer buffer = ByteBuffer.allocate(BYTE_BUFFER_CAPACITY);
         while (true) {
-            messages.forEach((a, q) -> {
+            messages.forEach((Address a, Queue<String> q) -> {
                 if (q != null && !q.isEmpty()) {
                     ChannelWrapper cw = addressReaders.get(a);
                     if (cw != null) {

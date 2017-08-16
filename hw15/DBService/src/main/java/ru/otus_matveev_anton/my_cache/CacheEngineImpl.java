@@ -17,14 +17,14 @@ import java.util.function.Predicate;
 public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImplMBean {
 
     private static final int CHANGE_STATS_MONITORING_DELAY = 300;
-    private final int DEFAULT_THRESHOLD_TIME_S = 10;
+    private final long DEFAULT_THRESHOLD_TIME_S = 10;
 
     private int maxElements;
     private long lifeTimeS;
     private long idleTimeS;
     private volatile boolean isEternal;
     private volatile boolean isChanged;
-    private int timeThresholdS = DEFAULT_THRESHOLD_TIME_S;
+    private long timeThresholdS = DEFAULT_THRESHOLD_TIME_S;
 
     private final Map<K, SoftReference<MyElement<K, V>>> elements = new ConcurrentHashMap<>();
     private final ScheduledExecutorService cleaner = Executors.newScheduledThreadPool(2);
@@ -204,7 +204,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
     }
 
     //Getters and setters
-    public void setTimeThresholdS(int timeThresholdS) {
+    public void setTimeThresholdS(long timeThresholdS) {
         if (timeThresholdS < 2) throw new IllegalArgumentException("time threshold value can`t be less then 2");
         this.timeThresholdS = timeThresholdS;
         isChanged = true;
@@ -252,7 +252,7 @@ public class CacheEngineImpl<K, V> implements CacheEngine<K, V>, CacheEngineImpl
         isChanged = true;
     }
 
-    public int getTimeThresholdS() {
+    public long getTimeThresholdS() {
         return timeThresholdS;
     }
 

@@ -1,24 +1,24 @@
 package ru.otus_matveev_anton.messages;
 
 
-public class CacheStatsDataSet {
-    private int HitCount;
-    private int MissCount;
+public class CacheStatsDataSet extends CachePropsDataSet{
+    private long HitCount;
+    private long MissCount;
     private int Size;
 
-    public int getHitCount() {
+    public long getHitCount() {
         return HitCount;
     }
 
-    public void setHitCount(int hitCount) {
+    public void setHitCount(long hitCount) {
         HitCount = hitCount;
     }
 
-    public int getMissCount() {
+    public long getMissCount() {
         return MissCount;
     }
 
-    public void setMissCount(int missCount) {
+    public void setMissCount(long missCount) {
         MissCount = missCount;
     }
 

@@ -15,6 +15,7 @@ import ru.otus_matveev_anton.genaral.MessageSystemClient;
 import ru.otus_matveev_anton.genaral.SpecialAddress;
 import ru.otus_matveev_anton.message_system_client.JsonSocketClient;
 import ru.otus_matveev_anton.messages.CachePropsDataSet;
+import ru.otus_matveev_anton.messages.CacheStatsDataSet;
 import ru.otus_matveev_anton.my_cache.CacheEngine;
 import ru.otus_matveev_anton.my_cache.CacheEngineImplMBean;
 
@@ -91,7 +92,20 @@ public class MainMyOrmWithCache {
                 return false;
             }
         );
-        cacheEngine.addCacheStatsChangedListener(b -> msClient.sendMessage(addresseeFrontend, b));
+        cacheEngine.addCacheStatsChangedListener(b -> {
+                    CacheStatsDataSet ds = new CacheStatsDataSet();
+                    ds.setHitCount(b.getHitCount());
+                    ds.setMissCount(b.getMissCount());
+                    ds.setSize(b.getSize());
+                    ds.setEternal(b.isEternal());
+                    ds.setIdleTimeS(b.getIdleTimeS());
+                    ds.setLifeTimeS(b.getLifeTimeS());
+                    ds.setMaxElements(b.getMaxElements());
+                    ds.setTimeThresholdS(b.getTimeThresholdS());
+
+            msClient.sendMessage(addresseeFrontend, ds);
+        }
+        );
     }
 
     private UserDataSet getRandomUser(){

@@ -1,17 +1,17 @@
 package ru.otus_matveev_anton.messages;
 
 public class CachePropsDataSet {
-    private int TimeThresholdS;
+    private long TimeThresholdS;
     private int MaxElements;
-    private int LifeTimeS;
-    private int IdleTimeS;
+    private long LifeTimeS;
+    private long IdleTimeS;
     private boolean Eternal;
 
-    public int getTimeThresholdS() {
+    public long getTimeThresholdS() {
         return TimeThresholdS;
     }
 
-    public void setTimeThresholdS(int timeThresholdS) {
+    public void setTimeThresholdS(long timeThresholdS) {
         TimeThresholdS = timeThresholdS;
     }
 
@@ -23,19 +23,19 @@ public class CachePropsDataSet {
         MaxElements = maxElements;
     }
 
-    public int getLifeTimeS() {
+    public long getLifeTimeS() {
         return LifeTimeS;
     }
 
-    public void setLifeTimeS(int lifeTimeS) {
+    public void setLifeTimeS(long lifeTimeS) {
         LifeTimeS = lifeTimeS;
     }
 
-    public int getIdleTimeS() {
+    public long getIdleTimeS() {
         return IdleTimeS;
     }
 
-    public void setIdleTimeS(int idleTimeS) {
+    public void setIdleTimeS(long idleTimeS) {
         IdleTimeS = idleTimeS;
     }
 

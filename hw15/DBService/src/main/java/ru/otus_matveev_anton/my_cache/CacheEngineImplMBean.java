@@ -2,9 +2,9 @@ package ru.otus_matveev_anton.my_cache;
 
 public interface CacheEngineImplMBean {
 
-    int getTimeThresholdS();
+    long getTimeThresholdS();
 
-    void setTimeThresholdS(int timeThresholdS);
+    void setTimeThresholdS(long timeThresholdS);
 
     int getMaxElements();
 
