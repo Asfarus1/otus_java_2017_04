@@ -3,7 +3,6 @@ package ru.otus_matveev_anton.json_message_system;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.otus_matveev_anton.genaral.*;
-import ru.otus_matveev_anton.messages.CacheStatsDataSet;
 
 import java.io.*;
 import java.net.InetSocketAddress;
@@ -20,7 +19,6 @@ public class JsonSocketServer implements MessageSystem {
 
     private static final int BYTE_BUFFER_CAPACITY = 512;
     private static final int WORKERS_COUNT = 5;
-    private static final String MESSAGE_SEPARATOR = "\n\n";
     private final int port;
 
     private final Map<Address, Queue<String>> messages = new ConcurrentHashMap<>();
@@ -119,7 +117,7 @@ public class JsonSocketServer implements MessageSystem {
                             while (!q.isEmpty()) {
                                 log.debug("send to address {} message {}", a, q.peek());
                                 buffer.put(q.poll().getBytes());
-                                buffer.put(MESSAGE_SEPARATOR.getBytes());
+                                buffer.put(JsonMessage.MESSAGE_SEPARATOR.getBytes());
                                 buffer.flip();
                                 while (buffer.hasRemaining()) {
                                     cw.channel.write(buffer);
@@ -208,7 +206,7 @@ public class JsonSocketServer implements MessageSystem {
                     log.info("For {} with groupName {} address {} already taken", channel.getRemoteAddress(), groupName, address);
                     IOException e = new IOException("Address " + address.toString() + " already taken");
                     String msg = new JsonMessage(addressee, addressee, e).toPackedData();
-                    channel.write(ByteBuffer.wrap(msg.concat(MESSAGE_SEPARATOR).getBytes()));
+                    channel.write(ByteBuffer.wrap(msg.concat(JsonMessage.MESSAGE_SEPARATOR).getBytes()));
                     throw e;
                 } else {
                     log.info("For {} with groupName {} set address {}", channel.getRemoteAddress(), groupName, address);

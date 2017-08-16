@@ -18,6 +18,7 @@ public class JsonMessage extends Message<String>{
     private static final String FIELD_NAME_DATA = "data";
 
     private final static GsonBuilder gsonBuilder = new GsonBuilder().registerTypeAdapter(JsonMessage.class, new jsonMessageSerializer());
+    public static final String MESSAGE_SEPARATOR = "\n\n";
 
     private final static class jsonMessageSerializer implements JsonSerializer<JsonMessage>, JsonDeserializer<JsonMessage>{
         @Override

@@ -1,7 +1,7 @@
 package ru.otus_matveev_anton.messages;
 
 
-public class CacheStatsDataSet extends CachePropsDataSet{
+public class CacheStatsDataSet{
     private long HitCount;
     private long MissCount;
     private int Size;

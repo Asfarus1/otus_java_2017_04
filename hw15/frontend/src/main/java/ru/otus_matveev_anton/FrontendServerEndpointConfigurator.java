@@ -7,6 +7,7 @@ import ru.otus_matveev_anton.genaral.AddresseeImpl;
 import ru.otus_matveev_anton.genaral.MessageSystemClient;
 import ru.otus_matveev_anton.genaral.SpecialAddress;
 import ru.otus_matveev_anton.message_system_client.JsonSocketClient;
+import ru.otus_matveev_anton.messages.CacheGetCurrentProps;
 
 import javax.websocket.server.ServerEndpointConfig;
 import java.io.IOException;
@@ -32,6 +33,7 @@ public class FrontendServerEndpointConfigurator extends ServerEndpointConfig.Con
     @SuppressWarnings("unchecked")
     public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
         if (CacheAdminWebSocketEndPoint.class.equals(endpointClass)){
+            msClient.sendMessage(addresseeDB, new CacheGetCurrentProps());
             return (T) new CacheAdminWebSocketEndPoint(msClient, addresseeDB);
         }
         return super.getEndpointInstance(endpointClass);

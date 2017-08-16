@@ -14,6 +14,7 @@ import ru.otus_matveev_anton.genaral.AddresseeImpl;
 import ru.otus_matveev_anton.genaral.MessageSystemClient;
 import ru.otus_matveev_anton.genaral.SpecialAddress;
 import ru.otus_matveev_anton.message_system_client.JsonSocketClient;
+import ru.otus_matveev_anton.messages.CacheGetCurrentProps;
 import ru.otus_matveev_anton.messages.CachePropsDataSet;
 import ru.otus_matveev_anton.messages.CacheStatsDataSet;
 import ru.otus_matveev_anton.my_cache.CacheEngine;
@@ -81,15 +82,19 @@ public class MainMyOrmWithCache {
 
         msClient.addMessageReceiveListener(message ->{
                 Object data = message.getData();
-                if (data instanceof CachePropsDataSet){
+                if (data instanceof CachePropsDataSet) {
                     CachePropsDataSet propsDataSet = (CachePropsDataSet) data;
                     cacheBean.setEternal(propsDataSet.isEternal());
                     cacheBean.setIdleTimeS(propsDataSet.getIdleTimeS());
                     cacheBean.setLifeTimeS(propsDataSet.getLifeTimeS());
                     cacheBean.setMaxElements(propsDataSet.getMaxElements());
                     cacheBean.setTimeThresholdS(propsDataSet.getTimeThresholdS());
+                }else if (data instanceof CacheGetCurrentProps) {
+                    cacheEngine.setDataChanged();
+                }else{
+                    return false;
                 }
-                return false;
+                return true;
             }
         );
         cacheEngine.addCacheStatsChangedListener(b -> {
@@ -97,12 +102,16 @@ public class MainMyOrmWithCache {
                     ds.setHitCount(b.getHitCount());
                     ds.setMissCount(b.getMissCount());
                     ds.setSize(b.getSize());
+            msClient.sendMessage(addresseeFrontend, ds);
+        }
+        );
+        cacheEngine.addCachePropsChangedListener(b -> {
+                    CachePropsDataSet ds = new CachePropsDataSet();
                     ds.setEternal(b.isEternal());
                     ds.setIdleTimeS(b.getIdleTimeS());
                     ds.setLifeTimeS(b.getLifeTimeS());
                     ds.setMaxElements(b.getMaxElements());
                     ds.setTimeThresholdS(b.getTimeThresholdS());
-
             msClient.sendMessage(addresseeFrontend, ds);
         }
         );

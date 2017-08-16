@@ -11,5 +11,7 @@ public interface CacheEngine<K, V>{
 
     void addCacheStatsChangedListener(CacheStatsChangedListener listener);
 
-    boolean removeCacheStatsChangedListener(CacheStatsChangedListener listener);
+    void addCachePropsChangedListener(CachePropsChangedListener listener);
+
+    void setDataChanged();
 }

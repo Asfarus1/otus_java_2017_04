@@ -27,6 +27,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     public static JsonSocketClient newInstance(){
         return fromConfigFiles(DEFAULT_PROP_FILE_PATH);
     }
+
     public static JsonSocketClient fromConfigFiles(String... configFiles) throws ConnectException {
         if (configFiles.length == 0){
             throw new IllegalArgumentException("no config files");
@@ -50,7 +51,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         return new JsonSocketClient(props);
     }
 
-    public JsonSocketClient(Properties props) {
+    private JsonSocketClient(Properties props) {
 
         String host = props.getProperty("host");
         Integer port = null;
@@ -118,12 +119,13 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     }
 
     private void sendingMessages(){
-        try (PrintWriter os = new PrintWriter(socket.getOutputStream(), true)) {
+        try (PrintWriter os = new PrintWriter(socket.getOutputStream())) {
             while (socket.isConnected()) {
                 if (!out.isEmpty()) {
                     String json = out.poll();
-                    os.println(json);
-                    os.println();
+                    os.print(json);
+                    os.print(JsonMessage.MESSAGE_SEPARATOR);
+                    os.flush();
                     log.debug("send msg:{}", json);
                 }
             }

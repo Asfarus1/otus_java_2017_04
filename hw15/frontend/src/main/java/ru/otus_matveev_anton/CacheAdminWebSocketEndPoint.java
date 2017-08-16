@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.otus_matveev_anton.genaral.Addressee;
 import ru.otus_matveev_anton.genaral.MessageSystemClient;
+import ru.otus_matveev_anton.messages.CacheGetCurrentProps;
 import ru.otus_matveev_anton.messages.CachePropsDataSet;
 
 import javax.servlet.http.HttpServlet;
@@ -18,18 +19,25 @@ import java.util.concurrent.ConcurrentHashMap;
 public class CacheAdminWebSocketEndPoint extends HttpServlet{
     private final static Logger log = LogManager.getLogger(CacheAdminWebSocketEndPoint.class);
     private final Set<Session> sessions = ConcurrentHashMap.newKeySet();
-    private  MessageSystemClient<String> messageClient;
+    private  MessageSystemClient<String> msClient;
     private Addressee addresseeDB;
+    private volatile boolean hasCacheProps = false;
 
-    public CacheAdminWebSocketEndPoint(MessageSystemClient<String> messageClient, Addressee addresseeDB) {
-        this.messageClient = messageClient;
+    public CacheAdminWebSocketEndPoint(MessageSystemClient<String> msClient, Addressee addresseeDB) {
+        this.msClient = msClient;
         this.addresseeDB = addresseeDB;
 
-        messageClient.addMessageReceiveListener(
+        msClient.addMessageReceiveListener(
                 (m)->{
-                    String msg = new Gson().toJson(m.getData());
+                    Object data = m.getData();
+                    if (data instanceof CachePropsDataSet){
+                        hasCacheProps = true;
+                    }else if (!hasCacheProps){
+                        msClient.sendMessage(addresseeDB, new CacheGetCurrentProps());
+                    }
+                    String msg = new Gson().toJson(data);
                     for (Session session : sessions) {
-                        log.debug("Send to session {} {}", session, m);
+                        log.debug("Send to session {} {}", session, msg);
                         session.getAsyncRemote().sendText(msg);
                     }
                     return false;
@@ -55,7 +63,7 @@ public class CacheAdminWebSocketEndPoint extends HttpServlet{
         log.debug("Session {} received message: {} ", session, message);
         try {
             CachePropsDataSet dataSet = new Gson().fromJson(message, CachePropsDataSet.class);
-            messageClient.sendMessage(addresseeDB, dataSet);
+            msClient.sendMessage(addresseeDB, dataSet);
         } catch (JsonSyntaxException e) {
             log.error("Session {} parsing message {} error :", session, message, e);
         }
