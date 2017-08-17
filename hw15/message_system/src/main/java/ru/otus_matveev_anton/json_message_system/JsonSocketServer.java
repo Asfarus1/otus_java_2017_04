@@ -13,6 +13,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class JsonSocketServer implements MessageSystem {
     private final static Logger log = LogManager.getLogger(JsonSocketServer.class);
@@ -89,7 +91,7 @@ public class JsonSocketServer implements MessageSystem {
 
                             if (read == -1) {
                                 log.info("Connection with {} closed", channel.getRemoteAddress());
-                            } else if (read > 0){
+                            }else {
                                 executor.submit(channelWrapper::receivingMessages);
                                 isOk = true;
                             }
@@ -154,6 +156,7 @@ public class JsonSocketServer implements MessageSystem {
         final SocketChannel channel;
         Address address;
         volatile boolean isRegistered;
+        Lock lock = new ReentrantLock();
 
         ChannelWrapper(SocketChannel channel) throws IOException {
             this.out = new PipedOutputStream();
@@ -192,59 +195,70 @@ public class JsonSocketServer implements MessageSystem {
             String inputLine;
             StringBuilder stringBuilder = new StringBuilder();
             while (true) {
-                synchronized (this) {
+                if (br.ready()) {
                     inputLine = br.readLine();
-                }
-                if(inputLine == null) break;
+                    if (inputLine == null) break;
 
-                stringBuilder.append(inputLine);
-                if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
-                    log.debug("get message {}", stringBuilder);
-                    return stringBuilder.toString();
+                    stringBuilder.append(inputLine);
+                    if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
+                        log.debug("get message {}", stringBuilder);
+                        return stringBuilder.toString();
+                    }
+                } else {
+                    try {
+                        Thread.sleep(DEFAULT_OPER_DELAY_MS);
+                    } catch (InterruptedException e) {
+                        log.error(e);
+                    }
                 }
             }
             throw new IOException(channel.getRemoteAddress().toString() + " : socked input closed");
         }
 
         void registerChannel(){
+
             try {
-                String json = readTextMessage();
-                Message<String> message = new JsonMessage();
-                message.loadFromPackagedData(json);
+                if (lock.tryLock()) {
+                    String json = readTextMessage();
+                    Message<String> message = new JsonMessage();
+                    message.loadFromPackagedData(json);
 
-                Addressee addressee = message.getFrom();
-                address = addressee.getAddress();
+                    Addressee addressee = message.getFrom();
+                    address = addressee.getAddress();
 
-                String groupName = addressee.getGroupName();
-                if (SpecialAddress.GENERATE_NEW.equals(address)) {
-                    address = new ClientAddress();
-                    log.info("For {} with groupName {} generated new address {}", channel.getRemoteAddress(), groupName, address);
-                } else if (addressReaders.containsKey(address)) {
-                    log.info("For {} with groupName {} address {} already taken", channel.getRemoteAddress(), groupName, address);
-                    IOException e = new IOException("Address " + address.toString() + " already taken");
-                    String msg = new JsonMessage(addressee, addressee, e).toPackedData();
-                    channel.write(ByteBuffer.wrap(msg.concat(JsonMessage.MESSAGE_SEPARATOR).getBytes()));
-                    throw e;
-                } else {
-                    log.info("For {} with groupName {} set address {}", channel.getRemoteAddress(), groupName, address);
+                    String groupName = addressee.getGroupName();
+                    if (SpecialAddress.GENERATE_NEW.equals(address)) {
+                        address = new ClientAddress();
+                        log.info("For {} with groupName {} generated new address {}", channel.getRemoteAddress(), groupName, address);
+                    } else if (addressReaders.containsKey(address)) {
+                        log.info("For {} with groupName {} address {} already taken", channel.getRemoteAddress(), groupName, address);
+                        IOException e = new IOException("Address " + address.toString() + " already taken");
+                        String msg = new JsonMessage(addressee, addressee, e).toPackedData();
+                        channel.write(ByteBuffer.wrap(msg.concat(JsonMessage.MESSAGE_SEPARATOR).getBytes()));
+                        throw e;
+                    } else {
+                        log.info("For {} with groupName {} set address {}", channel.getRemoteAddress(), groupName, address);
+                    }
+
+                    addressee = new AddresseeImpl(address, groupName);
+
+                    messages.putIfAbsent(address, new LinkedBlockingQueue<>());
+                    Queue<String> queue = messages.get(address);
+                    queue.offer(new JsonMessage(addressee, addressee, MessageSystem.MESSAGE_OK).toPackedData());
+
+                    groupAddresses.putIfAbsent(groupName, ConcurrentHashMap.newKeySet());
+                    Set<Address> set = groupAddresses.get(groupName);
+                    set.add(address);
+
+                    addressReaders.put(address, this);
+                    isRegistered = true;
+                    executor.submit(this::receivingMessages);
                 }
-
-                addressee = new AddresseeImpl(address, groupName);
-
-                messages.putIfAbsent(address, new LinkedBlockingQueue<>());
-                Queue<String> queue = messages.get(address);
-                queue.offer(new JsonMessage(addressee, addressee, MessageSystem.MESSAGE_OK).toPackedData());
-
-                groupAddresses.putIfAbsent(groupName, ConcurrentHashMap.newKeySet());
-                Set<Address> set = groupAddresses.get(groupName);
-                set.add(address);
-
-                addressReaders.put(address, this);
-                isRegistered = true;
-                executor.submit(this::receivingMessages);
             }catch (IOException e){
                 log.error(e);
                 close();
+            }finally {
+                lock.unlock();
             }
         }
 
@@ -252,39 +266,43 @@ public class JsonSocketServer implements MessageSystem {
             if (!isRegistered) return;
 
             try {
-                while (hasMessage()) {
-                    String json = readTextMessage();
-                    JsonMessage message = new JsonMessage();
-                    try {
-                        message.loadFromPackagedData(json);
-                    } catch (MessageFormatException e) {
-                        log.error("{} - unpacking message error: {}", channel.getRemoteAddress(), e.getMessage());
-                        continue;
-                    }
+                if (lock.tryLock()) {
+                    while (hasMessage()) {
+                        String json = readTextMessage();
+                        JsonMessage message = new JsonMessage();
+                        try {
+                            message.loadFromPackagedData(json);
+                        } catch (MessageFormatException e) {
+                            log.error("{} - unpacking message error: {}", channel.getRemoteAddress(), e.getMessage());
+                            continue;
+                        }
 
-                    Addressee addressee = message.getTo();
-                    Address address = addressee.getAddress();
-                    if (address instanceof ClientAddress) {
-                        messages.get(address).offer(json);
-                    } else {
-                        Set<Address> addresses = groupAddresses.get(addressee.getGroupName());
-                        if (addresses!= null && addresses.size() > 0) {
-                            if (SpecialAddress.ALL.equals(address)) {
-                                addresses.forEach(a -> messages.get(a).offer(json));
-                            } else if (SpecialAddress.ANYONE.equals(address)) {
-                                addresses.stream().map(messages::get).min(Comparator.comparing(Queue::size)).ifPresent(q -> q.offer(json));
+                        Addressee addressee = message.getTo();
+                        Address address = addressee.getAddress();
+                        if (address instanceof ClientAddress) {
+                            messages.get(address).offer(json);
+                        } else {
+                            Set<Address> addresses = groupAddresses.get(addressee.getGroupName());
+                            if (addresses != null && addresses.size() > 0) {
+                                if (SpecialAddress.ALL.equals(address)) {
+                                    addresses.forEach(a -> messages.get(a).offer(json));
+                                } else if (SpecialAddress.ANYONE.equals(address)) {
+                                    addresses.stream().map(messages::get).min(Comparator.comparing(Queue::size)).ifPresent(q -> q.offer(json));
+                                }
                             }
                         }
-                    }
-                    try {
-                        Thread.sleep(DEFAULT_OPER_DELAY_MS);
-                    } catch (InterruptedException e) {
-                        log.error(e);
+                        try {
+                            Thread.sleep(DEFAULT_OPER_DELAY_MS);
+                        } catch (InterruptedException e) {
+                            log.error(e);
+                        }
                     }
                 }
             } catch (IOException e) {
                 log.error(e);
                 close();
+            }finally {
+                lock.unlock();
             }
         }
     }

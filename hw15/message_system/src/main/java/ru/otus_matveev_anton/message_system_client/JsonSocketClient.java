@@ -187,10 +187,22 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         String inputLine;
         StringBuilder stringBuilder = new StringBuilder();
 
-        while ((inputLine = br.readLine()) != null) {
-            stringBuilder.append(inputLine);
-            if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
-                return stringBuilder.toString();
+        while (true) {
+            if (br.ready()) {
+                log.debug("in readline");
+                inputLine = br.readLine();
+                log.debug("out readline");
+                if (inputLine == null) break;
+                stringBuilder.append(inputLine);
+                if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
+                    return stringBuilder.toString();
+                }
+            } else {
+                try {
+                    Thread.sleep(DEFAULT_OPER_DELAY_MS);
+                } catch (InterruptedException e) {
+                    log.error(e);
+                }
             }
         }
         throw new IOException("socked input closed");
