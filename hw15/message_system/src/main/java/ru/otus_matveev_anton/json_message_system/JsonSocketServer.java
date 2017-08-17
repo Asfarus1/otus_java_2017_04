@@ -7,7 +7,10 @@ import ru.otus_matveev_anton.genaral.*;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.*;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -26,8 +29,8 @@ public class JsonSocketServer implements MessageSystem {
 
     private final Map<Address, Queue<String>> messages = new ConcurrentHashMap<>();
     private final Map<String, Set<Address>> groupAddresses = new ConcurrentHashMap<>();
-    private final Map<Address, ChannelWrapper> addressReaders = new ConcurrentHashMap<>();
-    private final Map<SocketChannel, ChannelWrapper> channelReaders = new ConcurrentHashMap<>();
+    private final Map<Address, ChannelWrapper> addressWrappers = new ConcurrentHashMap<>();
+    private final Map<SocketChannel, ChannelWrapper> channelWrappers = new ConcurrentHashMap<>();
 
     private final ExecutorService executor = Executors.newFixedThreadPool(WORKERS_COUNT);
 
@@ -38,7 +41,7 @@ public class JsonSocketServer implements MessageSystem {
 
     public void start() throws Exception {
         executor.submit(this::receiveMessage);
-        executor.submit(this::sendMessage);
+        executor.submit(this::sendingMessage);
     }
 
     @SuppressWarnings("InfiniteLoopStatement")
@@ -70,16 +73,17 @@ public class JsonSocketServer implements MessageSystem {
                         if (key.isAcceptable()) {
                             channel = serverSocketChannel.accept();
                             log.info("Accepted connection from {}", channel.getRemoteAddress());
+                            channel.socket().setSoTimeout(1);
                             channel.configureBlocking(false);
                             channel.register(selector, SelectionKey.OP_READ);
                             isOk = true;
                         } else if (key.isReadable()) {
                             channel = (SocketChannel) key.channel();
-                            channelWrapper = channelReaders.get(channel);
+                            channelWrapper = channelWrappers.get(channel);
 
                             if (channelWrapper == null) {
                                 channelWrapper = new ChannelWrapper(channel);
-                                channelReaders.put(channel, channelWrapper);
+                                channelWrappers.put(channel, channelWrapper);
                                 executor.submit(channelWrapper::registerChannel);
                             }
 
@@ -115,23 +119,26 @@ public class JsonSocketServer implements MessageSystem {
     }
 
     @SuppressWarnings("InfiniteLoopStatement")
-    private void sendMessage() {
+    private void sendingMessage() {
         ByteBuffer buffer = ByteBuffer.allocate(BYTE_BUFFER_CAPACITY);
         while (true) {
             messages.forEach((Address a, Queue<String> q) -> {
                 if (q != null && !q.isEmpty()) {
-                    ChannelWrapper cw = addressReaders.get(a);
+                    ChannelWrapper cw = addressWrappers.get(a);
+                    String msg;
                     if (cw != null) {
                         try {
                             while (!q.isEmpty()) {
-                                log.debug("send to address {} message {}", a, q.peek());
-                                buffer.put(q.poll().getBytes());
-                                buffer.put(JsonMessage.MESSAGE_SEPARATOR.getBytes());
+                                msg = q.peek();
+                                buffer.put(msg.getBytes());
+                                buffer.put(JsonMessage.MESSAGE_SEPARATOR);
                                 buffer.flip();
                                 while (buffer.hasRemaining()) {
                                     cw.channel.write(buffer);
                                 }
                                 buffer.clear();
+                                q.poll();
+                                log.debug("send to address {} message {}", a, msg);
                             }
                         } catch (IOException e) {
                             log.error(e);
@@ -141,11 +148,15 @@ public class JsonSocketServer implements MessageSystem {
                     }
                 }
             });
-            try {
-                Thread.sleep(DEFAULT_OPER_DELAY_MS);
-            } catch (InterruptedException e) {
-                log.error(e);
-            }
+            sleep();
+        }
+    }
+
+    private void sleep() {
+        try {
+            Thread.sleep(DEFAULT_OPER_DELAY_MS);
+        } catch (InterruptedException e) {
+            log.error(e);
         }
     }
 
@@ -168,14 +179,9 @@ public class JsonSocketServer implements MessageSystem {
         @Override
         public void close(){
             if (address != null) {
-                addressReaders.remove(address);
+                addressWrappers.remove(address);
             }
-            channelReaders.remove(channel);
-            try {
-                br.close();
-            } catch (IOException e) {
-                log.error(e);
-            }
+            channelWrappers.remove(channel);
             try {
                 channel.close();
             } catch (IOException e) {
@@ -183,7 +189,7 @@ public class JsonSocketServer implements MessageSystem {
             }
         }
 
-        synchronized void write(byte[] buff, int len) throws IOException {
+        void write(byte[] buff, int len) throws IOException {
             out.write(buff, 0, len);
         }
 
@@ -196,8 +202,7 @@ public class JsonSocketServer implements MessageSystem {
             StringBuilder stringBuilder = new StringBuilder();
             while (channel.isOpen()) {
                 if (br.ready()) {
-                    inputLine = br.readLine();
-                    if (inputLine == null) break;
+                    if ((inputLine = br.readLine()) == null) break;
 
                     stringBuilder.append(inputLine);
                     if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
@@ -205,11 +210,7 @@ public class JsonSocketServer implements MessageSystem {
                         return stringBuilder.toString();
                     }
                 } else {
-                    try {
-                        Thread.sleep(DEFAULT_OPER_DELAY_MS);
-                    } catch (InterruptedException e) {
-                        log.error(e);
-                    }
+                    sleep();
                 }
             }
             throw new IOException(channel.getRemoteAddress().toString() + " : socked input closed");
@@ -230,11 +231,16 @@ public class JsonSocketServer implements MessageSystem {
                     if (SpecialAddress.GENERATE_NEW.equals(address)) {
                         address = new ClientAddress();
                         log.info("For {} with groupName {} generated new address {}", channel.getRemoteAddress(), groupName, address);
-                    } else if (addressReaders.containsKey(address)) {
-                        log.info("For {} with groupName {} address {} already taken", channel.getRemoteAddress(), groupName, address);
+                    } else if (addressWrappers.containsKey(address)) {
+                        log.error("For {} with groupName {} address {} already taken", channel.getRemoteAddress(), groupName, address);
                         IOException e = new IOException("Address " + address.toString() + " already taken");
-                        String msg = new JsonMessage(addressee, addressee, e).toPackedData();
-                        channel.write(ByteBuffer.wrap(msg.concat(JsonMessage.MESSAGE_SEPARATOR).getBytes()));
+                        byte[] msg = new JsonMessage(addressee, addressee, e).toPackedData().getBytes();
+                        ByteBuffer bf = ByteBuffer.allocate(msg.length + JsonMessage.MESSAGE_SEPARATOR.length);
+                        bf.put(msg);
+                        bf.put(JsonMessage.MESSAGE_SEPARATOR);
+                        bf.flip();
+                        channel.write(bf);
+                        address = null;
                         throw e;
                     } else {
                         log.info("For {} with groupName {} set address {}", channel.getRemoteAddress(), groupName, address);
@@ -250,7 +256,7 @@ public class JsonSocketServer implements MessageSystem {
                     Set<Address> set = groupAddresses.get(groupName);
                     set.add(address);
 
-                    addressReaders.put(address, this);
+                    addressWrappers.put(address, this);
                     isRegistered = true;
                     executor.submit(this::receivingMessages);
                 }
@@ -272,6 +278,7 @@ public class JsonSocketServer implements MessageSystem {
                         JsonMessage message = new JsonMessage();
                         try {
                             message.loadFromPackagedData(json);
+                            log.debug("unpack msg:{}", json);
                         } catch (MessageFormatException e) {
                             log.error("{} - unpacking message error: {}", channel.getRemoteAddress(), e.getMessage());
                             continue;
@@ -280,22 +287,23 @@ public class JsonSocketServer implements MessageSystem {
                         Addressee addressee = message.getTo();
                         Address address = addressee.getAddress();
                         if (address instanceof ClientAddress) {
-                            messages.get(address).offer(json);
+                            addMessage(address, json);
                         } else {
                             Set<Address> addresses = groupAddresses.get(addressee.getGroupName());
                             if (addresses != null && addresses.size() > 0) {
                                 if (SpecialAddress.ALL.equals(address)) {
-                                    addresses.forEach(a -> messages.get(a).offer(json));
+                                    addresses.forEach(a->addMessage(a, json));
                                 } else if (SpecialAddress.ANYONE.equals(address)) {
-                                    addresses.stream().map(messages::get).min(Comparator.comparing(Queue::size)).ifPresent(q -> q.offer(json));
+                                    addresses.stream()
+                                            .min(Comparator.comparing(a->{
+                                                Queue<String> q = messages.get(a);
+                                                return q == null ? 0 : q.size();
+                                            }))
+                                            .ifPresent(a->addMessage(a, json));
                                 }
                             }
                         }
-                        try {
-                            Thread.sleep(DEFAULT_OPER_DELAY_MS);
-                        } catch (InterruptedException e) {
-                            log.error(e);
-                        }
+                        sleep();
                     }
                 }
             } catch (IOException e) {
@@ -303,6 +311,16 @@ public class JsonSocketServer implements MessageSystem {
                 close();
             }finally {
                 lock.unlock();
+            }
+        }
+
+        private void addMessage(Address address, String msg){
+            Queue<String> queue = messages.get(address);
+            if (queue == null){
+                log.warn("failed add msg for {}, address unknown : {}", address, msg);
+            }else {
+                log.debug("add msg for {} : {}", address, msg);
+                queue.add(msg);
             }
         }
     }

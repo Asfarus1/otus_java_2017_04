@@ -20,12 +20,7 @@ public class FrontendServerEndpointConfigurator extends ServerEndpointConfig.Con
     public FrontendServerEndpointConfigurator() {
         super();
         msClient = JsonSocketClient.newInstance();
-        try {
-            msClient.init();
-        } catch (IOException e) {
-            log.error(e);
-            throw new RuntimeException(e);
-        }
+        msClient.init();
         addresseeDB = new AddresseeImpl(SpecialAddress.ANYONE, "DBService");
     }
 

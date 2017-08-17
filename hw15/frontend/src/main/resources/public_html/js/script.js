@@ -1,5 +1,6 @@
 ws = (() => {
-    let webSocket = new WebSocket('ws://localhost:8080/cacheAdmin');
+    let path = window.location.href;
+    let webSocket = new WebSocket('ws:' + path.substring(path.indexOf("//")) + 'cacheAdmin');
     webSocket.onopen = (message) => console.log('webSocket opened:' + message);
     webSocket.onmessage = (message) => {
         console.log('webSocket message:' + message.data);

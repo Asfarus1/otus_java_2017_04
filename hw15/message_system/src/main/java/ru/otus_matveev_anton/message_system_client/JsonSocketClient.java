@@ -6,6 +6,7 @@ import ru.otus_matveev_anton.genaral.*;
 import ru.otus_matveev_anton.json_message_system.JsonMessage;
 
 import java.io.*;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Arrays;
 import java.util.Properties;
@@ -17,15 +18,19 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class JsonSocketClient extends MessageSystemClient<String> {
 
     private final static Logger log = LogManager.getLogger(JsonSocketClient.class);
-    private static final int WORKERS_COUNT = 2;
-    private static final String DEFAULT_PROP_FILE_PATH = "/message_system_client.properties";
+    private static final int WORKERS_COUNT = 3;
+    private static final String DEFAULT_PROP_FILE_PATH = "message_system_client.properties";
     private static final int DEFAULT_OPER_DELAY_MS = 10;
+    private static final int SO_TIMEOUT = 10_000;
+    private static final int CONNECT_TIMEOUT = 2000;
+    private static final int DEFAULT_CONNECT_TRY_COUNT = 5;
 
     private final Queue<String> out;
     private Socket socket;
     private final ExecutorService executor;
     private final String host;
     private final int port;
+    private final int maxConnectTryCount;
 
     public static JsonSocketClient newInstance(){
         return fromConfigFiles(DEFAULT_PROP_FILE_PATH);
@@ -67,12 +72,6 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         String groupName = props.getProperty("groupName");
         String clientId = props.getProperty("clientId");
 
-        if (props.containsKey("queueCapacity")) {
-            out = new LinkedBlockingQueue<>(Integer.valueOf(props.getProperty("queueCapacity")));
-        } else {
-            out = new LinkedBlockingQueue<>();
-        }
-
         if (host == null || port == null || groupName == null){
             String msg = "Config files must contain properties: [host, port, groupName] and may contain [clientId, queueCapacity]";
             log.error(msg);
@@ -84,92 +83,82 @@ public class JsonSocketClient extends MessageSystemClient<String> {
                 ? new AddresseeImpl(SpecialAddress.GENERATE_NEW, groupName)
                 : new AddresseeImpl(clientId, groupName));
 
+        out = props.containsKey("queueCapacity") ? new LinkedBlockingQueue<>(Integer.valueOf(props.getProperty("queueCapacity"))) : new LinkedBlockingQueue<>();
+
+        maxConnectTryCount = props.containsKey("maxConnectTryCount") ? Integer.valueOf(props.getProperty("maxConnectTryCount")) : DEFAULT_CONNECT_TRY_COUNT;
 
         executor = Executors.newFixedThreadPool(WORKERS_COUNT);
     }
 
-    public void init() throws IOException {
+    public void init(){
         executor.submit(this::connect);
     }
 
     @SuppressWarnings("InfiniteLoopStatement")
-    private void connect(){
-        while (true){
-            if (socket == null || socket.isClosed()){
+    private void connect() {
+        int connectTryCount = 0;
+        while (true) {
+            if (socket == null || socket.isClosed()) {
                 try {
-                    socket = new Socket(host, port);
+                    socket = new Socket();
+                    socket.connect(new InetSocketAddress(host, port), CONNECT_TIMEOUT);
+                    socket.setSoTimeout(SO_TIMEOUT);
+                    executor.submit(this::register);
+                    connectTryCount = 0;
                 } catch (IOException | RuntimeException e) {
                     log.error("Connection failure", e);
-                    close();
-                    log.error("Connection failure", e);
-                    continue;
-                }
-                executor.submit(this::sendingMessages);
-                register();
-                executor.submit(this::register);
-            }else {
-                try {
-                    Thread.sleep(DEFAULT_OPER_DELAY_MS);
-                } catch (InterruptedException e) {
-                    log.error(e);
+                    if (++connectTryCount == maxConnectTryCount) {
+                        log.error("Number of connection attempts exceeded");
+                        close();
+                    }else {
+                        closeSocket();
+                    }
                 }
             }
+            sleep();
         }
     }
-    private void receivingMessages(){
-        String json;
-        try (BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-            while (socket.isConnected()) {
-                json = readTextFromStream(is);
-                log.debug("got msg:{}", json);
-                JsonMessage message =  new JsonMessage();
-                try {
-                    message.loadFromPackagedData(json);
-                } catch (MessageFormatException e) {
-                    log.error("Unpacking message error:" + json, e);
-                    message = null;
-                }
-               onMessageReceive(message);
-            }
-        } catch (IOException e) {
+
+    private void sleep() {
+        try {
+            Thread.sleep(DEFAULT_OPER_DELAY_MS);
+        } catch (InterruptedException e) {
             log.error(e);
-        }finally {
-//            close();
         }
     }
 
     private void sendingMessages(){
-        try (PrintWriter os = new PrintWriter(socket.getOutputStream())) {
-            while (socket.isConnected()) {
+        try (OutputStream os = socket.getOutputStream()) {
+            while (!socket.isClosed()) {
                 if (!out.isEmpty()) {
-                    String json = out.poll();
-                    os.print(json);
-                    os.print(JsonMessage.MESSAGE_SEPARATOR);
+                    String json = out.peek();
+                    os.write(json.getBytes());
+                    os.write(JsonMessage.MESSAGE_SEPARATOR);
                     os.flush();
+                    out.poll();
                     log.debug("send msg:{}", json);
                 }else {
-                    try {
-                        Thread.sleep(DEFAULT_OPER_DELAY_MS);
-                    } catch (InterruptedException e) {
-                        log.error(e);
-                    }
+                    sleep();
                 }
             }
         } catch (IOException e) {
             log.error(e);
         }finally {
-//            close();
+            closeSocket();
         }
-    }
-
-    @Override
-    public boolean sendMessage(Addressee to, Object data) {
-        return out.offer(new JsonMessage(getAddressee(), to, data).toPackedData());
     }
 
     private void register(){
         sendMessage(getAddressee(), null);
         try {
+            OutputStream os = socket.getOutputStream();
+            String msg = new JsonMessage(getAddressee(), getAddressee(), null).toPackedData();
+            os.write(msg.getBytes());
+            os.write(JsonMessage.MESSAGE_SEPARATOR);
+            os.flush();
+
+            log.debug("send authorization {}" + msg);
+
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String json = readTextFromStream(in);
             Message<String> message = new JsonMessage();
@@ -184,10 +173,44 @@ public class JsonSocketClient extends MessageSystemClient<String> {
                 log.info("client registered {}", getAddressee());
             }
             executor.submit(this::receivingMessages);
+            executor.submit(this::sendingMessages);
         } catch (IOException e) {
             log.error(e);
-//            close();
+            closeSocket();
         }
+    }
+
+    private void receivingMessages(){
+        String json;
+        try (BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
+            while (!socket.isClosed()) {
+                json = readTextFromStream(is);
+                log.debug("got msg:{}", json);
+                JsonMessage message =  new JsonMessage();
+                try {
+                    message.loadFromPackagedData(json);
+                    log.debug("unpack msg:{}", json);
+                } catch (MessageFormatException e) {
+                    log.error("Unpacking message error:", e);
+                    continue;
+                }
+                if (message.getData() instanceof Throwable){
+                    throw new IOException("Server error", (Throwable) message.getData());
+                }
+               onMessageReceive(message);
+            }
+        } catch (IOException e) {
+            log.error(e);
+        }finally {
+            closeSocket();
+        }
+    }
+
+    @Override
+    public void sendMessage(Addressee to, Object data) {
+        String msg = new JsonMessage(getAddressee(), to, data).toPackedData();
+        log.debug("add message {}", msg);
+        out.offer(msg);
     }
 
     private void saveClientId(String fileName) throws IOException {
@@ -207,36 +230,30 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         String inputLine;
         StringBuilder stringBuilder = new StringBuilder();
 
-        while (!socket.isClosed()) {
-            if (br.ready()) {
-                log.debug("in readline");
-                inputLine = br.readLine();
-                log.debug("out readline");
-                if (inputLine == null) break;
-                stringBuilder.append(inputLine);
-                if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
-                    return stringBuilder.toString();
-                }
-            } else {
-                try {
-                    Thread.sleep(DEFAULT_OPER_DELAY_MS);
-                } catch (InterruptedException e) {
-                    log.error(e);
-                }
+        while (!socket.isClosed() && ((inputLine = br.readLine()) != null)) {
+            stringBuilder.append(inputLine);
+            if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
+                return stringBuilder.toString();
             }
         }
         throw new IOException("socked input closed");
     }
 
     public void close(){
+        closeSocket();
         super.close();
+        executor.shutdown();
+        log.info("message client closed");
+    }
+
+    private void closeSocket() {
         if (socket != null && !socket.isClosed()) {
             try {
                 socket.close();
+                log.info("Socked closed");
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        executor.shutdown();
     }
 }

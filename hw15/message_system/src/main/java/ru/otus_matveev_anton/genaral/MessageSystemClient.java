@@ -19,11 +19,9 @@ public abstract class MessageSystemClient<T> implements Closeable{
         return addressee;
     }
 
-    abstract public boolean sendMessage(Addressee to, Object data);
+    abstract public void sendMessage(Addressee to, Object data);
 
-//    abstract protected void register() throws IOException;
-
-    abstract public void init() throws IOException;
+    abstract public void init();
 
 
     public void addMessageReceiveListener(MessageReceiveListener listener) {
@@ -38,7 +36,7 @@ public abstract class MessageSystemClient<T> implements Closeable{
         this.shutdownRegistrations.add(runnable);
     }
 
-    public void onMessageReceive(Message<T> message) {
+    protected void onMessageReceive(Message<T> message) {
         for (MessageReceiveListener listener : listeners) {
             if (listener.onMessageReceive(message)) {
                 break;

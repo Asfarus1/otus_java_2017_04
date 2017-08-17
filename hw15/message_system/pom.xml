@@ -36,7 +36,7 @@
                     <appendAssemblyId>false</appendAssemblyId>
                     <archive>
                         <manifest>
-                            <mainClass>ru.main.MainServer</mainClass>
+                            <mainClass>ru.otus_matveev_anton.MainServer</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
