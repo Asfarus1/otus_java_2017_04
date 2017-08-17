@@ -166,7 +166,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
             executor.submit(this::receivingMessages);
         } catch (IOException e) {
             log.error(e);
-
+            close();
         }
     }
 

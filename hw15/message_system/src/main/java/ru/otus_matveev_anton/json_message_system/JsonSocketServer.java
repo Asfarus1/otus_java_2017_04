@@ -89,7 +89,7 @@ public class JsonSocketServer implements MessageSystem {
 
                             if (read == -1) {
                                 log.info("Connection with {} closed", channel.getRemoteAddress());
-                            } else{
+                            } else if (read > 0){
                                 executor.submit(channelWrapper::receivingMessages);
                                 isOk = true;
                             }
