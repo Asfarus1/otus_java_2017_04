@@ -19,6 +19,7 @@ public class JsonSocketServer implements MessageSystem {
 
     private static final int BYTE_BUFFER_CAPACITY = 512;
     private static final int WORKERS_COUNT = 5;
+    private static final int DEFAULT_OPER_DELAY_MS = 10;
     private final int port;
 
     private final Map<Address, Queue<String>> messages = new ConcurrentHashMap<>();
@@ -32,10 +33,14 @@ public class JsonSocketServer implements MessageSystem {
         this.port = port;
     }
 
-    @SuppressWarnings("InfiniteLoopStatement")
-    public void start() throws Exception {
-        executor.submit(this::sendMessage);
 
+    public void start() throws Exception {
+        executor.submit(this::receiveMessage);
+        executor.submit(this::sendMessage);
+    }
+
+    @SuppressWarnings("InfiniteLoopStatement")
+    private void receiveMessage(){
         try (ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
             serverSocketChannel.bind(new InetSocketAddress("localhost", port));
 
@@ -102,6 +107,8 @@ public class JsonSocketServer implements MessageSystem {
                     }
                 }
             }
+        }catch (IOException e){
+            log.error(e);
         }
     }
 
@@ -132,6 +139,11 @@ public class JsonSocketServer implements MessageSystem {
                     }
                 }
             });
+            try {
+                Thread.sleep(DEFAULT_OPER_DELAY_MS);
+            } catch (InterruptedException e) {
+                log.error(e);
+            }
         }
     }
 
@@ -168,7 +180,7 @@ public class JsonSocketServer implements MessageSystem {
             }
         }
 
-        void write(byte[] buff, int len) throws IOException {
+        synchronized void write(byte[] buff, int len) throws IOException {
             out.write(buff, 0, len);
         }
 
@@ -179,7 +191,12 @@ public class JsonSocketServer implements MessageSystem {
         String readTextMessage() throws IOException {
             String inputLine;
             StringBuilder stringBuilder = new StringBuilder();
-            while ((inputLine = br.readLine()) != null) {
+            while (true) {
+                synchronized (this) {
+                    inputLine = br.readLine();
+                }
+                if(inputLine == null) break;
+
                 stringBuilder.append(inputLine);
                 if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
                     log.debug("get message {}", stringBuilder);
@@ -258,6 +275,11 @@ public class JsonSocketServer implements MessageSystem {
                                 addresses.stream().map(messages::get).min(Comparator.comparing(Queue::size)).ifPresent(q -> q.offer(json));
                             }
                         }
+                    }
+                    try {
+                        Thread.sleep(DEFAULT_OPER_DELAY_MS);
+                    } catch (InterruptedException e) {
+                        log.error(e);
                     }
                 }
             } catch (IOException e) {

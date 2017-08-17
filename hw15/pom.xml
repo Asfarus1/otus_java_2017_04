@@ -11,6 +11,7 @@
         <module>frontend</module>
         <module>message_system</module>
         <module>app</module>
+        <module>DBService</module>
     </modules>
     <packaging>pom</packaging>
 

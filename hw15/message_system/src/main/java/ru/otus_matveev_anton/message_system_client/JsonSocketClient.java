@@ -19,6 +19,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     private final static Logger log = LogManager.getLogger(JsonSocketClient.class);
     private static final int WORKERS_COUNT = 2;
     private static final String DEFAULT_PROP_FILE_PATH = "/message_system_client.properties";
+    private static final int DEFAULT_OPER_DELAY_MS = 10;
 
     private final Queue<String> out;
     private final Socket socket;
@@ -92,8 +93,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
 
     public void init() throws IOException {
         executor.submit(this::sendingMessages);
-        register();
-        executor.submit(this::receivingMessages);
+        executor.submit(this::register);
     }
 
     private void receivingMessages(){
@@ -127,6 +127,12 @@ public class JsonSocketClient extends MessageSystemClient<String> {
                     os.print(JsonMessage.MESSAGE_SEPARATOR);
                     os.flush();
                     log.debug("send msg:{}", json);
+                }else {
+                    try {
+                        Thread.sleep(DEFAULT_OPER_DELAY_MS);
+                    } catch (InterruptedException e) {
+                        log.error(e);
+                    }
                 }
             }
         } catch (IOException e) {
@@ -141,20 +147,26 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         return out.offer(new JsonMessage(getAddressee(), to, data).toPackedData());
     }
 
-    private void register() throws IOException {
+    private void register(){
         sendMessage(getAddressee(), null);
-        BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        String json = readTextFromStream(in);
-        Message<String> message = new JsonMessage();
-        message.loadFromPackagedData(json);
-        Object data = message.getData();
-        if (data instanceof Throwable){
-            Throwable e = (Throwable) data;
-            log.error("Registration failure", e);
-            throw new IOException("Registration failure", e);
-        }else {
-            setAddressee(message.getTo());
-            log.info("client registered {}", getAddressee());
+        try {
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            String json = readTextFromStream(in);
+            Message<String> message = new JsonMessage();
+            message.loadFromPackagedData(json);
+            Object data = message.getData();
+            if (data instanceof Throwable){
+                Throwable e = (Throwable) data;
+                log.error("Registration failure", e);
+                throw new IOException("Registration failure", e);
+            }else {
+                setAddressee(message.getTo());
+                log.info("client registered {}", getAddressee());
+            }
+            executor.submit(this::receivingMessages);
+        } catch (IOException e) {
+            log.error(e);
+
         }
     }
 
