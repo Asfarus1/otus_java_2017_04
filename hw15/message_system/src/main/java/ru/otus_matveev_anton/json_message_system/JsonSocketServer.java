@@ -194,7 +194,7 @@ public class JsonSocketServer implements MessageSystem {
         String readTextMessage() throws IOException {
             String inputLine;
             StringBuilder stringBuilder = new StringBuilder();
-            while (true) {
+            while (channel.isOpen()) {
                 if (br.ready()) {
                     inputLine = br.readLine();
                     if (inputLine == null) break;

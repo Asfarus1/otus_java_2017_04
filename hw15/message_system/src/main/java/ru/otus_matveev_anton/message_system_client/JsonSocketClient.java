@@ -22,8 +22,10 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     private static final int DEFAULT_OPER_DELAY_MS = 10;
 
     private final Queue<String> out;
-    private final Socket socket;
+    private Socket socket;
     private final ExecutorService executor;
+    private final String host;
+    private final int port;
 
     public static JsonSocketClient newInstance(){
         return fromConfigFiles(DEFAULT_PROP_FILE_PATH);
@@ -54,7 +56,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
 
     private JsonSocketClient(Properties props) {
 
-        String host = props.getProperty("host");
+        host = props.getProperty("host");
         Integer port = null;
         try{
             port = Integer.valueOf(props.getProperty("port"));
@@ -76,26 +78,44 @@ public class JsonSocketClient extends MessageSystemClient<String> {
             log.error(msg);
             throw new IllegalArgumentException(msg);
         }
+        this.port = port;
 
         setAddressee(clientId == null
                 ? new AddresseeImpl(SpecialAddress.GENERATE_NEW, groupName)
                 : new AddresseeImpl(clientId, groupName));
 
-        try {
-            socket = new Socket(host, port);
-        } catch (IOException | RuntimeException e) {
-            log.error("Connection failure", e);
-            close();
-            throw new ConnectException("Connection failure", e);
-        }
+
         executor = Executors.newFixedThreadPool(WORKERS_COUNT);
     }
 
     public void init() throws IOException {
-        executor.submit(this::sendingMessages);
-        executor.submit(this::register);
+        executor.submit(this::connect);
     }
 
+    @SuppressWarnings("InfiniteLoopStatement")
+    private void connect(){
+        while (true){
+            if (socket == null || socket.isClosed()){
+                try {
+                    socket = new Socket(host, port);
+                } catch (IOException | RuntimeException e) {
+                    log.error("Connection failure", e);
+                    close();
+                    log.error("Connection failure", e);
+                    continue;
+                }
+                executor.submit(this::sendingMessages);
+                register();
+                executor.submit(this::register);
+            }else {
+                try {
+                    Thread.sleep(DEFAULT_OPER_DELAY_MS);
+                } catch (InterruptedException e) {
+                    log.error(e);
+                }
+            }
+        }
+    }
     private void receivingMessages(){
         String json;
         try (BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
@@ -114,7 +134,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         } catch (IOException e) {
             log.error(e);
         }finally {
-            close();
+//            close();
         }
     }
 
@@ -138,7 +158,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         } catch (IOException e) {
             log.error(e);
         }finally {
-            close();
+//            close();
         }
     }
 
@@ -166,7 +186,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
             executor.submit(this::receivingMessages);
         } catch (IOException e) {
             log.error(e);
-            close();
+//            close();
         }
     }
 
@@ -187,7 +207,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         String inputLine;
         StringBuilder stringBuilder = new StringBuilder();
 
-        while (true) {
+        while (!socket.isClosed()) {
             if (br.ready()) {
                 log.debug("in readline");
                 inputLine = br.readLine();
@@ -210,7 +230,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
 
     public void close(){
         super.close();
-        if (socket != null && socket.isConnected()) {
+        if (socket != null && !socket.isClosed()) {
             try {
                 socket.close();
             } catch (IOException e) {
