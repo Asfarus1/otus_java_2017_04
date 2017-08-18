@@ -70,7 +70,7 @@ public class MainMyOrmWithCache {
     private void initMS() {
         msClient = JsonSocketClient.newInstance();
         msClient.init();
-        addresseeFrontend = new AddresseeImpl(SpecialAddress.ANYONE, "frontend");
+        addresseeFrontend = new AddresseeImpl(SpecialAddress.ALL, "frontend");
 
         CacheEngine<Long, UserDataSet> cacheEngine = dbService.getCache();
         CacheEngineImplMBean cacheBean = (CacheEngineImplMBean)cacheEngine;

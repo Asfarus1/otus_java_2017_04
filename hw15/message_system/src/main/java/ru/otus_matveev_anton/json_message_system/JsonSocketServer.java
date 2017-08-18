@@ -131,14 +131,13 @@ public class JsonSocketServer implements MessageSystem {
                             while (!q.isEmpty()) {
                                 msg = q.peek();
                                 buffer.put(msg.getBytes());
-                                buffer.put(JsonMessage.MESSAGE_SEPARATOR);
-                                buffer.flip();
-                                while (buffer.hasRemaining()) {
-                                    cw.channel.write(buffer);
-                                }
-                                buffer.clear();
+                                send(buffer, cw.channel);
                                 q.poll();
+                                cw.active();
                                 log.debug("send to address {} message {}", a, msg);
+                            }
+                            if (cw.lastActive + 5_000 < System.currentTimeMillis()){
+                                send(buffer, cw.channel);
                             }
                         } catch (IOException e) {
                             log.error(e);
@@ -151,6 +150,16 @@ public class JsonSocketServer implements MessageSystem {
             sleep();
         }
     }
+
+    private void send(ByteBuffer buffer, SocketChannel channel) throws IOException {
+        buffer.put(JsonMessage.MESSAGE_SEPARATOR);
+        buffer.flip();
+        while (buffer.hasRemaining()) {
+            channel.write(buffer);
+        }
+        buffer.clear();
+    }
+
 
     private void sleep() {
         try {
@@ -167,6 +176,7 @@ public class JsonSocketServer implements MessageSystem {
         final SocketChannel channel;
         Address address;
         volatile boolean isRegistered;
+        volatile long lastActive;
         Lock lock = new ReentrantLock();
 
         ChannelWrapper(SocketChannel channel) throws IOException {
@@ -191,6 +201,11 @@ public class JsonSocketServer implements MessageSystem {
 
         void write(byte[] buff, int len) throws IOException {
             out.write(buff, 0, len);
+            active();
+        }
+
+        void active(){
+            lastActive = System.currentTimeMillis();
         }
 
         boolean hasMessage() throws IOException {
@@ -232,18 +247,13 @@ public class JsonSocketServer implements MessageSystem {
                         address = new ClientAddress();
                         log.info("For {} with groupName {} generated new address {}", channel.getRemoteAddress(), groupName, address);
                     } else if (addressWrappers.containsKey(address)) {
-                        log.error("For {} with groupName {} address {} already taken", channel.getRemoteAddress(), groupName, address);
-                        IOException e = new IOException("Address " + address.toString() + " already taken");
-                        byte[] msg = new JsonMessage(addressee, addressee, e).toPackedData().getBytes();
-                        ByteBuffer bf = ByteBuffer.allocate(msg.length + JsonMessage.MESSAGE_SEPARATOR.length);
-                        bf.put(msg);
-                        bf.put(JsonMessage.MESSAGE_SEPARATOR);
-                        bf.flip();
-                        channel.write(bf);
-                        address = null;
-                        throw e;
+                        addressTakenError(addressee);
                     } else {
-                        log.info("For {} with groupName {} set address {}", channel.getRemoteAddress(), groupName, address);
+                        try {
+                            ClientAddress.registeredAddressId(((ClientAddress)address).getId());
+                        }catch (RuntimeException re){
+                           addressTakenError(addressee);
+                        }
                     }
 
                     addressee = new AddresseeImpl(address, groupName);
@@ -266,6 +276,19 @@ public class JsonSocketServer implements MessageSystem {
             }finally {
                 lock.unlock();
             }
+        }
+
+        private void addressTakenError(Addressee addressee) throws IOException {
+            IOException e = new IOException("Address " + address.toString() + " already taken");
+            byte[] msg = new JsonMessage(addressee, addressee, e).toPackedData().getBytes();
+            ByteBuffer bf = ByteBuffer.allocate(msg.length + JsonMessage.MESSAGE_SEPARATOR.length);
+            bf.put(msg);
+            bf.put(JsonMessage.MESSAGE_SEPARATOR);
+            bf.flip();
+            channel.write(bf);
+            address = null;
+            log.error("For {} with groupName {} address {} already taken", channel.getRemoteAddress(), addressee.getGroupName(), addressee.getAddress());
+            throw e;
         }
 
         private void receivingMessages() {

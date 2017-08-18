@@ -4,7 +4,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class ClientAddress implements Address {
     private final int id;
+
     private static final AtomicInteger ID_GENERATOR = new AtomicInteger();
+
+    public static void registeredAddressId(int id){
+        ID_GENERATOR.updateAndGet(o-> {
+            if (o >= id) {
+                throw new RuntimeException();
+            } else {
+                return o + id;
+            }
+        });
+    }
 
     public ClientAddress(int id) {
         this.id = id;
@@ -12,6 +23,10 @@ public class ClientAddress implements Address {
 
     public ClientAddress() {
         id = ID_GENERATOR.incrementAndGet();
+    }
+
+    public int getId() {
+        return id;
     }
 
     @Override

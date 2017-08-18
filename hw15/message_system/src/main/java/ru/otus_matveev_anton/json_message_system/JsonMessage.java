@@ -17,6 +17,11 @@ public class JsonMessage extends Message<String>{
     private static final String FIELD_NAME_DATA_CLASS = "dataClass";
     private static final String FIELD_NAME_DATA = "data";
 
+    public static final String STR_PING_MESSAGE = "{}";
+    public static final JsonMessage PING_MESSAGE = new JsonMessage(){
+
+    };
+
     private final static GsonBuilder gsonBuilder = new GsonBuilder().registerTypeAdapter(JsonMessage.class, new jsonMessageSerializer());
     public static final byte[] MESSAGE_SEPARATOR = "\n\n".getBytes();
 

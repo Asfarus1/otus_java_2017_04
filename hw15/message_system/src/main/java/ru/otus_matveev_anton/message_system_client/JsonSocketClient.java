@@ -19,9 +19,9 @@ public class JsonSocketClient extends MessageSystemClient<String> {
 
     private final static Logger log = LogManager.getLogger(JsonSocketClient.class);
     private static final int WORKERS_COUNT = 3;
-    private static final String DEFAULT_PROP_FILE_PATH = "message_system_client.properties";
+    private static final String DEFAULT_PROP_FILE_PATH = "/message_system_client.properties";
     private static final int DEFAULT_OPER_DELAY_MS = 10;
-    private static final int SO_TIMEOUT = 10_000;
+    private static final int SO_TIMEOUT = 120_000;
     private static final int CONNECT_TIMEOUT = 2000;
     private static final int DEFAULT_CONNECT_TRY_COUNT = 5;
 
@@ -112,6 +112,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
                         close();
                     }else {
                         closeSocket();
+                        return;
                     }
                 }
             }
@@ -185,6 +186,11 @@ public class JsonSocketClient extends MessageSystemClient<String> {
         try (BufferedReader is = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
             while (!socket.isClosed()) {
                 json = readTextFromStream(is);
+                if ("".equals(json)){
+                    log.info("got ping");
+                    continue;
+                }
+
                 log.debug("got msg:{}", json);
                 JsonMessage message =  new JsonMessage();
                 try {
@@ -229,11 +235,13 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     private String readTextFromStream(BufferedReader br) throws IOException {
         String inputLine;
         StringBuilder stringBuilder = new StringBuilder();
-
+        boolean fl = false;
         while (!socket.isClosed() && ((inputLine = br.readLine()) != null)) {
             stringBuilder.append(inputLine);
-            if (inputLine.isEmpty() && !stringBuilder.toString().isEmpty()) {
-                return stringBuilder.toString();
+            if (inputLine.isEmpty() && fl) {
+                    return stringBuilder.toString();
+            }else {
+                fl = true;
             }
         }
         throw new IOException("socked input closed");
