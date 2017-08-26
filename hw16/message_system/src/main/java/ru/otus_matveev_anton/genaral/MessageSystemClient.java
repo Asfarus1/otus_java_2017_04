@@ -7,7 +7,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public abstract class MessageSystemClient<T> implements Closeable{
     private final List<MessageReceiveListener> listeners = new CopyOnWriteArrayList<>();
 
-    private final List<Runnable> shutdownRegistrations = new CopyOnWriteArrayList<>();
+    private final ClosingListener closingListener = new ClosingListener();
 
     private Addressee addressee;
 
@@ -27,12 +27,8 @@ public abstract class MessageSystemClient<T> implements Closeable{
         listeners.add(listener);
     }
 
-    public boolean removeMessageReceiveListener(MessageReceiveListener listener) {
-        return listeners.remove(listener);
-    }
-
-    public void addShutdownRegistration(Runnable runnable) {
-        this.shutdownRegistrations.add(runnable);
+    public ClosingListener getClosingListener() {
+        return closingListener;
     }
 
     protected void onMessageReceive(Message<T> message) {
@@ -45,9 +41,6 @@ public abstract class MessageSystemClient<T> implements Closeable{
 
     @Override
     public void close() {
-        for (Runnable runnable : shutdownRegistrations) {
-            runnable.run();
-        }
-        shutdownRegistrations.clear();
+        closingListener.onClose();
     }
 }

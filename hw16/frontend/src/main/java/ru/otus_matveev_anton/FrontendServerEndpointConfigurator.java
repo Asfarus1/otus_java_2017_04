@@ -47,8 +47,8 @@ public class FrontendServerEndpointConfigurator extends ServerEndpointConfig.Con
         );
 
         final CacheGetCurrentProps msg = new CacheGetCurrentProps();
-        new Thread(()->{
-            while (curCacheFullStats == null){
+        new Thread(() -> {
+            while (curCacheFullStats == null) {
                 sendMessage(msg);
                 try {
                     Thread.sleep(5000);
@@ -63,7 +63,7 @@ public class FrontendServerEndpointConfigurator extends ServerEndpointConfig.Con
     @SuppressWarnings("unchecked")
     public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
         log.debug("getEndpointInstance {}", endpointClass);
-        if (CacheAdminWebSocketEndPoint.class.equals(endpointClass)){
+        if (CacheAdminWebSocketEndPoint.class.equals(endpointClass)) {
             msClient.sendMessage(addresseeDB, new CacheGetCurrentProps());
             CacheAdminWebSocketEndPoint point = new CacheAdminWebSocketEndPoint(this);
             endPoints.add(point);

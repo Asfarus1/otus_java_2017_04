@@ -22,7 +22,6 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     private static final int DEFAULT_OPER_DELAY_MS = 10;
     private static final int SO_TIMEOUT = 120_000;
     private static final int CONNECT_TIMEOUT = 2000;
-    private static final int PING_TIMEOUT = 5_000;
     private static final int RECONNECTION_TIMEOUT = 2000;
 
     private final Queue<JsonMessage> out;
@@ -30,7 +29,6 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     private final ExecutorService executor;
     private final String host;
     private final int port;
-    private volatile long lastActive;
 
     public static JsonSocketClient newInstance(){
         return fromConfigFiles(DEFAULT_PROP_FILE_PATH);
@@ -123,6 +121,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
     }
 
     private void sendingMessages(){
+        long nextSleep = 0;
         try (OutputStream os = socket.getOutputStream()) {
             while (!socket.isClosed()) {
                 if (!out.isEmpty()) {
@@ -131,17 +130,13 @@ public class JsonSocketClient extends MessageSystemClient<String> {
                     os.write(JsonMessage.MESSAGE_SEPARATOR);
                     os.flush();
                     out.poll();
-                    active();
                     log.debug("send msg:{}", json);
-                }else {
-                    if (lastActive + PING_TIMEOUT < System.currentTimeMillis()){
-                        os.write(JsonMessage.MESSAGE_SEPARATOR);
-                        os.flush();
-                        active();
-                        log.debug("send ping");
+                    if (nextSleep < System.currentTimeMillis()){
+                        nextSleep = System.currentTimeMillis() + DEFAULT_OPER_DELAY_MS;
+                        sleep(DEFAULT_OPER_DELAY_MS);
                     }
-                    sleep(DEFAULT_OPER_DELAY_MS);
                 }
+                sleep(DEFAULT_OPER_DELAY_MS);
             }
         } catch (IOException e) {
             log.error("sending messages error", e);
@@ -179,7 +174,7 @@ public class JsonSocketClient extends MessageSystemClient<String> {
             }
             executor.submit(this::receivingMessages);
             executor.submit(this::sendingMessages);
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Registration failure", e);
             closeSocket();
         }
@@ -248,10 +243,6 @@ public class JsonSocketClient extends MessageSystemClient<String> {
             isAnyRead = true;
         }
         throw new IOException("socked input closed");
-    }
-
-    private void active() {
-        lastActive = System.currentTimeMillis();
     }
 
     public void close(){

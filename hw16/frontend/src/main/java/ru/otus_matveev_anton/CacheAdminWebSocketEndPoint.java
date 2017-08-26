@@ -9,6 +9,7 @@ import ru.otus_matveev_anton.messages.CachePropsDataSet;
 import javax.servlet.http.HttpServlet;
 import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
+import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -31,10 +32,14 @@ public class CacheAdminWebSocketEndPoint extends HttpServlet{
     }
 
     @OnOpen
-    public String onOpen(Session session, EndpointConfig config){
+    public void onOpen(Session session, EndpointConfig config){
         log.info("Open session {} with user properties {}", session, config.getUserProperties());
         sessions.add(session);
-        return configurator.getCurCacheFullStats();
+        try {
+            session.getBasicRemote().sendText(configurator.getCurCacheFullStats());
+        } catch (IOException e) {
+            log.error(e);
+        }
     }
 
     @OnClose
